@@ -1,0 +1,28 @@
+{
+  "name": "cycling-dashboard-server",
+  "private": true,
+  "version": "0.1.0",
+  "description": "骑行评分监测看板的后端：邮箱密码登录 + 骑行数据云端存储",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "dev": "node --watch --disable-warning=ExperimentalWarning --experimental-strip-types src/index.ts",
+    "start": "node --disable-warning=ExperimentalWarning --experimental-strip-types src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --disable-warning=ExperimentalWarning --test --experimental-strip-types test/*.test.ts",
+    "gen-secret": "node -e \"console.log(require('node:crypto').randomBytes(48).toString('base64url'))\""
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/rate-limit": "^10.2.2",
+    "fastify": "^5.2.1",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.5",
+    "typescript": "~5.6.2"
+  }
+}

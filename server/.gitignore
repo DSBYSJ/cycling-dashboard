@@ -1,0 +1,11 @@
+# 后端运行时产生的数据与本地配置，绝不提交
+node_modules
+data/
+*.db
+*.db-shm
+*.db-wal
+dist
+.env
+.env.*
+!.env.example
+*.log

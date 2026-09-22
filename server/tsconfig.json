@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+
+    /* 后端直接用 node --experimental-strip-types 运行 .ts，不需要构建产物，
+       因此这里只做类型检查：不产出文件，并允许在 import 里写 .ts 后缀。 */
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

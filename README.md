@@ -1,6 +1,8 @@
 # 🚴 骑行评分监测看板
 
-个人骑行记录与评分可视化看板。记录(手动录入 / GPX 导入 / 地图绘制 / 手表同步)骑行数据后,自动采集当日**天气与空气质量**,结合**路线海拔与坡度**计算本次骑行的综合评分,并以手写 SVG 图表 + 高德地图轨迹的形式展示。数据全部保存在本地浏览器(IndexedDB),无需服务器。
+个人骑行记录与评分可视化看板。记录(手动录入 / GPX 导入 / 地图绘制 / 手表同步)骑行数据后,自动采集当日**天气与空气质量**,结合**路线海拔与坡度**计算本次骑行的综合评分,并以手写 SVG 图表 + 高德地图轨迹的形式展示。
+
+**需要登录**:账号系统与数据存储在后端(`server/`,Node + Fastify + SQLite),数据存在你自己的服务器上,换设备登录即可看到;浏览器里保留一份只读缓存,断网时仍能翻看历史记录。
 
 ## 页面结构
 
@@ -62,7 +64,7 @@
   - **其他骑友的评分与评论**已预留展示区域(评分分布 / 路况坡度反馈 / 最佳骑行时段),当前为本地个人版本暂无社区数据,接入服务端后可直接填充
 - **明暗(昼夜)主题**:顶栏一键切换日间/夜间,含地图底图与图表配色自适应,选择本地记忆
 - **数据备份与恢复**(看板页底部):把骑行记录、单车与每日打卡整体导出为一个 JSON 文件,或从备份文件合并恢复
-  - 应用数据只存在当前浏览器中,清除浏览器数据会一并丢失;换设备 / 换浏览器前先导出备份
+  - 数据以服务器为准;导出备份用于长期归档或把数据搬到另一套部署上
   - 导入采用合并方式(同 ID 覆盖),不会删除备份文件之外的数据
 - **今日骑行打卡**(已内嵌在「记录一次骑行」卡片顶部,快速打卡与详细录入二选一)
   - 选「骑了」→ **选择单车**(默认选中上次骑过的车)+ 距离(可留空)→ 打卡:自动生成一条当天的骑行记录并关联该车,
@@ -95,13 +97,14 @@
 - **可视化看板**:速度曲线(SVG 折线 + 均速参考线)、海拔曲线(SVG 面积)、评分雷达图(SVG)、地图轨迹(高德)
   - **评分趋势**:最近 10 次骑行,以综合评分折线为主线(渐变面积 + 数值标签 + 末点强调),天气/路线分项用细线作对照;纵轴固定 0–100 并叠加评分档位色带(优秀/良好/一般/较差),上方给出「平均 / 最好 / 较上次」概览数字,图例置于图表外避免遮挡曲线
   - **曲线平滑**:速度与海拔曲线采用单调三次插值(Fritsch–Carlson),陡升陡降处不会过冲跑出图表框;纵轴范围按「数据范围 ± 余量」取,低海拔(含负值)也会完整显示而不会被压平在图底
-- **历史记录**:IndexedDB 持久化(不可用时自动降级 localStorage),支持查看/编辑/删除/时间范围筛选,导出 JSON / CSV(CSV 带 BOM,Excel 打开不乱码)
+- **历史记录**:存在服务器(按用户隔离),本地保留只读缓存用于离线查看;支持查看/编辑/删除/时间范围筛选,导出 JSON / CSV(CSV 带 BOM,Excel 打开不乱码)
   - **路线编号**:新建记录自动分配序号(1、2、3…),在历史列表里点编号即可重命名(回车确认、Esc 取消,重命名后不影响后续编号递增)
   - **目的地**:规划路线的目的地(或 GPX 轨迹名)独立成列,与路线编号区分
   - **起点位置**:规划路线时取用户选定的起点名(如「珠江新城(地铁站)」「我的位置」);导入 GPX 或手绘路线时由轨迹首个点逆地理编码得到地址;列表里按「市+区」显示(如「广州市天河区」),悬停可看完整地址与坐标。表单里两个字段都可在自动填入后手动修正,CSV 同样导出(含经纬度)
-- **健壮性**:全局错误边界(单个组件出错不会白屏,可一键恢复)、地图/天气/存储均有多级降级;写入失败(如本地存储空间不足)会明确提示而不是静默丢数据
-- **PWA**:manifest 与 Service Worker 均已启用(`vite-plugin-pwa`),可安装到手机桌面并**离线打开查看已保存的历史记录**;包含 maskable 图标,安卓自适应图标裁切后不会丢边缘。生产构建后用 `npm run preview` 验证(Service Worker 需要 HTTPS 或 localhost)
-- **多标签页安全**:同一浏览器打开多个标签页时,任一页写入会通知其它页重新读取,不会出现「A 页看不到 B 页刚存的记录」或互相覆盖
+- **健壮性**:全局错误边界(单个组件出错不会白屏,可一键恢复)、地图/天气/网络均有多级降级;写入失败会给明确原因(网络不通 / 会话过期 / 服务端拒绝)而不是静默丢数据
+- **离线可用**:服务器连不上时自动切到本地缓存的只读副本(顶栏显示「离线・只读」),能翻看已同步的历史记录与轨迹;此状态下界面会明确告知「改动无法保存」,而不是让你白改一遍
+- **PWA**:manifest 与 Service Worker 均已启用(`vite-plugin-pwa`),可安装到手机桌面并**离线打开**;包含 maskable 图标,安卓自适应图标裁切后不会丢边缘。生产构建后用 `npm run preview` 验证(Service Worker 需要 HTTPS 或 localhost)
+- **多标签页**:同一浏览器开多个页面时,任一页写入会通知其它页重新拉取,不会出现「A 页看不到 B 页刚存的记录」
 
 ## 使用说明:分页与链接
 
@@ -109,16 +112,34 @@
 
 ## 本地运行
 
+前端与后端要**分别启动**（开发时前端把 `/api` 代理到 `127.0.0.1:3000`，所以两者同源，Cookie 正常）。
+
 ```bash
-npm install        # 安装依赖
-npm run dev        # 启动开发服务器,浏览器打开终端提示的地址(默认 http://localhost:5173)
-npm test           # 运行单元测试(评分算法 / GPX 解析 / 外胎寿命 / 备份校验 / 图表辅助函数)
+# 1) 后端（另开一个终端）
+cd server
+npm install
+cp .env.example .env
+npm run gen-secret     # 把输出粘到 .env 的 JWT_SECRET
+# 本地没有 HTTPS，把 .env 里的 COOKIE_SECURE 改成 false
+npm run dev            # http://127.0.0.1:3000
+
+# 2) 前端（项目根目录）
+npm install
+npm run dev            # 浏览器打开 http://localhost:5173，会在页面上要求登录/注册
+```
+
+常用命令：
+
+```bash
+npm test           # 前端单元测试
 npm run build      # 生产构建(输出 dist/),同时生成 Service Worker
 npm run preview    # 预览生产构建(PWA 与离线能力需在此模式下验证)
 npm run lint       # ESLint 检查
 ```
 
-> Node 版本要求:18+。
+后端自己的测试（真实 SQLite + 真实 HTTP）：`cd server && npm test`。
+
+> Node 版本要求：**22.6+**（后端用了 `node:sqlite` 与「直接运行 .ts」，都需要这个版本）。
 
 ## 高德地图 Key 配置
 
@@ -185,7 +206,8 @@ VITE_AMAP_SECURITY_CODE=你的安全密钥jscode
 - Tailwind CSS 3(配色全部走语义化 token,昼夜两套值由 CSS 变量提供)
 - 高德地图 JS API 2.0(`@amap/amap-jsapi-loader`)
 - 手写 SVG 图表(折线 / 面积 / 雷达 / 柱状,未使用图表库)
-- IndexedDB(Promise 封装 + localStorage 降级 + 跨标签页同步)
+- 后端:Node 22 + Fastify + `node:sqlite` + httpOnly Cookie(见 `server/README.md`)
+- IndexedDB(仅作为离线只读缓存,按账号分库)
 - `vite-plugin-pwa`(Workbox 生成 Service Worker 与 manifest)
 - Vitest + jsdom(单元测试)
 - Open-Meteo / sojson 免费 API
@@ -196,12 +218,14 @@ VITE_AMAP_SECURITY_CODE=你的安全密钥jscode
 
 - **主题 token**:`src/index.css` 定义 `--page/--surface/--t1…--t6/--line/--fill/--c-*-rgb` 三组变量,`tailwind.config.js` 把它们注册成颜色 token。带透明度的场景(`bg-surface/85`)要求变量是 RGB 三元组形式,所以底色类变量都存了三元组版本。
 - **图表配色**:SVG 的展示属性**不支持** `var()`,所以图表统一用 CSS 类声明描边与填充(`.chart-total` / `.chart-zone-good` / `.score-ring-excellent` 等,含渐变 `stop-color`)。高德 SDK 只接受颜色字符串,由 `src/utils/themeColors.ts` 在运行时读取主题变量。
-- **数据写入**:`useIndexedDB` 采用「乐观更新 + 失败回滚」——先就地更新本地状态(界面即时响应,不再整表重读),落库失败时提示原因并重新拉取真实数据。批量导入走单个事务,整体成功或整体回滚。
+- **登录态与数据源**:登录态放在 httpOnly Cookie 里(前端不持有令牌),所以「是否已登录」只能问后端 `GET /api/auth/me`;`src/App.tsx` 据此分流到登录页或主界面。数据层是「云端为主 + 本地只读缓存」(`src/hooks/useCloudData.ts`):先读缓存立刻渲染,再拉云端覆盖;写入走「乐观更新 + 失败回滚」,**离线时直接拒绝写入并说明原因**(让改了却存不上这种事不发生)。所有请求经 `src/api/client.ts`,它把「网络不通」与「后端返回了错误」分开,并按 `code` 给提示。
+- **列表不带轨迹**:一条 5000 点的 GPX 记录有几百 KB,历史列表传不起,所以列表接口只给 `hasTrack` 标记,`track` 为 `[]`。点开某条时 `ensureDetail` 再取详情 —— 注意这里有两个坑:① 拿列表项直接 PUT 会把服务器上的轨迹覆盖成空数组(适配器里用 `toWritableRide` 先取回完整记录再提交);② 云端列表刷新会把内存里已有的轨迹顶掉,所以判断「是否需要补详情」要基于数据本身(见 `selectedNeedsTrack`)而不是只看选中的 id。
+- **旧数据迁移**:老版本的数据只存在浏览器 IndexedDB 里(`cycling-dashboard` 库)。登录后 `useLegacyMigration` 会读一次:云端为空就自动上传并告知条数;云端已有数据则不擅自合并,只提示用户点一下。本地旧数据**始终不删除**。批量上传按请求体体积切块(`src/utils/chunks.ts`),避免撞上 8MB 上限。
 - **备份校验**:导入前由 `src/utils/backup.ts` 逐条归一化,字段缺失按默认值补齐,彻底不可用的记录(缺 id、日期非法、结构错误)跳过并告知条数,脏数据不会进库。
 - **按需加载**:三个分页用 `React.lazy` 拆包,「看板」页(高德地图 + 四个图表)只在切换过去时才下载;`react` / `lucide-react` / `@amap` 单独分包以便长期缓存。
 - **高德 SDK 的类型边界**:官方没有 TS 类型,项目在 `src/types/amap.ts` 手写了「实际用到的子集」(地图、覆盖物、四个服务类与回调结果结构)。因此**全项目没有任何 `any`**,SDK 字段名写错或返回结构变化在编译期就会暴露;新增 API 时请在那里补声明,不要退回 `any`。坐标形态差异(数组 / 对象 / LngLat 实例)由 `src/utils/amapCoords.ts` 统一归一。
 - **表单结构**:`RideForm` 只做编排,状态与业务逻辑在 `src/components/ride-form/useRideForm.ts`,分区组件(基本信息 / 路线 / 路线属性 / 环境 / 保存)各自独立,便于单独调整;每个分区用 `Pick<RideFormModel, …>` 显式声明它依赖的字段。
-- **测试**:`src/utils/__tests__/` 共 6 个文件、107 个用例,覆盖评分规则(逐条对应上面的评分模型表格)、GPX 解析与距离/爬升计算、外胎寿命阈值、备份导入校验、图表辅助函数、高德坐标归一。**调整评分权重后请先跑 `npm test`。**
+- **测试**:8 个文件、126 个用例,覆盖评分规则(逐条对应上面的评分模型表格)、GPX 解析与距离/爬升计算、外胎寿命阈值、备份导入校验、图表辅助函数、高德坐标归一、API 客户端的错误映射与 Cookie 携带、批量上传切块。**调整评分权重或接口约定后请先跑 `npm test`。**
 
 ## 项目结构
 
@@ -209,29 +233,38 @@ VITE_AMAP_SECURITY_CODE=你的安全密钥jscode
 cycling-dashboard/
 ├── index.html
 ├── public/               # 图标(含 maskable 与 apple-touch-icon);manifest 由插件生成
+├── server/               # 后端:登录 + 云端数据(见 server/README.md)
+│   ├── src/              # config / db / auth / repos / routes / lib
+│   ├── scripts/          # install.sh(一键安装) / backup.mjs(一致性备份)
+│   └── test/             # 单元 + 集成测试(真实 SQLite + 真实 HTTP)
 ├── src/
-│   ├── App.tsx           # 顶栏 + 分页路由(hash 同步)+ 业务编排
-│   ├── types.ts          # 数据类型
+│   ├── App.tsx           # 只做登录态分流:过渡页 / 登录页 / 主界面
+│   ├── api/client.ts     # 接口客户端:统一错误码、区分网络错误、按需超时
+│   ├── types.ts          # 数据类型(前后端共用,server 直接引用本文件)
 │   ├── types/amap.ts     # 高德 SDK 的最小类型声明(全项目无 any 的依据)
 │   ├── data/cities.ts    # 城市编码与坐标表
-│   ├── components/       # RideCheckIn(今日骑行打卡) / RideForm / RoutePlanner
-│   │                     # ManageBikes(单车与外胎寿命) / MapView
-│   │                     # HuaweiSyncButton / Toast
-│   │                     # ScoreCard / ScoreRadar / SpeedChart / ElevationChart
-│   │                     # HistoryList / TrendChart / ErrorBoundary
+│   ├── components/
+│   │   ├── Dashboard.tsx # 主界面:顶栏 + 分页路由(hash 同步)+ 业务编排
+│   │   ├── AccountMenu.tsx   # 账号菜单(改密码 / 退出)
+│   │   ├── auth/         # AuthProvider(登录态) / AuthPage(登录注册页)
+│   │   ├── RideCheckIn / RideForm / RoutePlanner / ManageBikes / MapView
+│   │   ├── HuaweiSyncButton / Toast / ErrorBoundary
+│   │   ├── ScoreCard / ScoreRadar / SpeedChart / ElevationChart
+│   │   ├── HistoryList / TrendChart / DataBackup
 │   │   ├── tabs/         # RecordTab / DashboardTab / BikesTab(按需加载)
 │   │   └── ride-form/    # useRideForm(状态与业务逻辑)
 │   │                     # BasicSection / RouteSection / RouteAttrSection / EnvSection / SubmitSection
-│   ├── hooks/            # useAmap(共享地图 SDK) / useRoutePlanning(路线规划)
-│   │                     # useHuaweiSync(手表同步状态)
-│   │                     # useIndexedDB(骑行记录 + 单车 + 打卡,IndexedDB v3)
-│   │                     # useTabRoute(分页与 hash 同步)
-│   │                     # useWeather / useElevation / useTheme
+│   ├── hooks/
+│   │   ├── useAuth.ts            # 登录态 Context 与消费方
+│   │   ├── useCloudData.ts       # 数据层:云端为主 + 本地只读缓存
+│   │   ├── useLegacyMigration.ts # 首次登录把浏览器里的旧数据搬到云端
+│   │   ├── useAmap / useRoutePlanning / useHuaweiSync
+│   │   ├── useTabRoute / useWeather / useElevation / useTheme
 │   └── utils/            # scoring(评分算法) / gpxParser / chartHelpers / tire(外胎寿命)
-│                         # backup(备份校验与归一化) / amapCoords(坐标归一)
-│                         # themeColors(运行时取主题色)
-│                         # huaweiMock(手表数据 Mock 层,预留真实接口)
+│                         # backup(备份校验) / chunks(批量上传切块)
+│                         # localCache(按账号分库的离线缓存) / amapCoords(坐标归一)
+│                         # themeColors(运行时取主题色) / huaweiMock(手表 Mock 层)
 │                         # __tests__/ 单元测试
-├── .env                  # 高德 Key 配置
+├── .env                  # 高德 Key 配置(不进 git)
 └── package.json
 ```

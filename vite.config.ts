@@ -7,6 +7,19 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   // 产物用相对路径:既可部署到子目录,也是后续用 Capacitor 打包安卓 App 的前提
   base: './',
+  server: {
+    /**
+     * 本地开发时把 /api 代理到后端(默认 3000 端口)。
+     * 目的是让前端在开发环境也走「同源 /api」，与线上 Nginx 的行为一致 ——
+     * 这样登录 Cookie 的作用域、路径都和生产相同，不会出现「开发能用、上线登录失效」。
+     */
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: false,
+      },
+    },
+  },
   plugins: [
     react(),
     /**

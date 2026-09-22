@@ -1,0 +1,29 @@
+# 换行符约定
+#
+# 背景：项目在 Windows 上开发、部署到 Linux。如果脚本被存成 CRLF，
+# Linux 上执行会报 `bash: /bin/bash^M: bad interpreter`（^M 就是那个 \r）。
+# 这里对脚本强制 LF，避免依赖各人本地的 core.autocrlf 设置。
+#
+# 其余文本文件交给 Git 自动判断：入库统一为 LF，检出时用各平台默认值。
+
+* text=auto
+
+# 需要在 Linux 上直接执行的脚本 —— 强制 LF（入库与检出都是 LF）
+*.sh    text eol=lf
+*.mjs   text eol=lf
+*.bash  text eol=lf
+
+# 其它源码与文档：入库 LF，检出按平台
+*.ts    text
+*.tsx   text
+*.js    text
+*.json  text
+*.md    text
+
+# 二进制资源不要做换行符转换
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary

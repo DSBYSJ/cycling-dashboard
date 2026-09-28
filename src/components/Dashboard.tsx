@@ -9,7 +9,7 @@ import { withTireStatus } from '../utils/tire'
 import type { ImportSummary } from '../utils/backup'
 import Toast, { type ToastMessage, type ToastType } from './Toast'
 import AccountMenu from './AccountMenu'
-import { ICP_LICENSE, IcpRecord } from './IcpRecord'
+import { HAS_FILING, FilingRecords } from './FilingRecords'
 
 /**
  * 分页组件按需加载:「看板」页包含高德地图与四个手写图表,是首屏体积的大头,
@@ -495,11 +495,11 @@ export default function Dashboard() {
             <a className="transition hover:text-t2" href="./terms.html" target="_blank" rel="noreferrer">
               用户协议
             </a>
-            {/* 备案号来自环境变量；未配置时连分隔符一起不渲染 */}
-            {ICP_LICENSE && (
+            {/* 备案信息来自环境变量；两者都没有时连分隔符一起不渲染 */}
+            {HAS_FILING && (
               <>
                 <span className="mx-2 text-t5">·</span>
-                <IcpRecord />
+                <FilingRecords />
               </>
             )}
           </p>

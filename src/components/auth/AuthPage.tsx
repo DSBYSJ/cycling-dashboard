@@ -2,7 +2,7 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { Eye, EyeOff, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
-import { ICP_LICENSE, IcpRecord } from '../IcpRecord'
+import { HAS_FILING, FilingRecords } from '../FilingRecords'
 
 /**
  * 登录 / 注册页。
@@ -227,10 +227,10 @@ export default function AuthPage() {
           </span>
         </p>
 
-        {/* 备案号来自环境变量；未配置时整块不渲染 */}
-        {ICP_LICENSE && (
+        {/* 备案信息来自环境变量；未配置时整块不渲染 */}
+        {HAS_FILING && (
           <p className="mt-3 text-center text-[11px] text-t5">
-            <IcpRecord />
+            <FilingRecords />
           </p>
         )}
       </div>

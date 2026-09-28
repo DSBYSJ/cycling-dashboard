@@ -11,8 +11,16 @@ import { HAS_FILING, FilingRecords } from '../FilingRecords'
  * 这里只是为了让用户不用等一次往返才知道格式不对）。
  */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-const PASSWORD_MIN = 8
+/** 纯用户名（不含 @）：字母/数字开头，只含字母数字下划线连字符，3–30 位 —— 与后端一致 */
+const USERNAME_RE = /^[a-z0-9][a-z0-9_-]{2,29}$/
+/** 密码下限 6 位：与后端 `auth/password.ts` 的 PASSWORD_MIN_LENGTH 保持一致 */
+const PASSWORD_MIN = 6
 const PASSWORD_MAX = 200
+
+/** 账号标识同时接受邮箱与纯用户名 */
+function isValidAccount(v: string): boolean {
+  return EMAIL_RE.test(v) || USERNAME_RE.test(v)
+}
 
 type Mode = 'login' | 'register'
 
@@ -47,8 +55,8 @@ export default function AuthPage() {
       event.preventDefault()
       const trimmed = email.trim()
 
-      if (!EMAIL_RE.test(trimmed.toLowerCase())) {
-        setLocalError('请输入有效的邮箱地址')
+      if (!isValidAccount(trimmed.toLowerCase())) {
+        setLocalError('请输入邮箱，或 3–30 位的用户名（字母、数字、下划线、连字符）')
         return
       }
       if (password.length < PASSWORD_MIN) {
@@ -139,19 +147,22 @@ export default function AuthPage() {
           <form onSubmit={handleSubmit} className="mt-4 space-y-4" noValidate>
             <div>
               <label className="field-label" htmlFor="auth-email">
-                邮箱
+                账号
               </label>
               <input
                 id="auth-email"
                 className="field-input"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
+                /* 用 text 而不是 email：后端已支持纯用户名，email 类型会被浏览器原生校验拦下 */
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 autoFocus
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="you@example.com 或用户名"
                 aria-invalid={Boolean(shownError)}
               />
             </div>
@@ -210,7 +221,7 @@ export default function AuthPage() {
           <p className="mt-4 text-center text-[11px] leading-5 text-t4">
             {mode === 'login' ? (
               <>
-                还没有账号？点上面的<b className="font-medium text-t3">注册</b>，填邮箱和密码就行
+                还没有账号？点上面的<b className="font-medium text-t3">注册</b>，填账号和密码就行
               </>
             ) : (
               '注册后会自动登录，并把你之前存在这台浏览器里的记录上传到云端'

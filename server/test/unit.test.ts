@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken'
 import { hashPassword, verifyPassword, PASSWORD_MIN_LENGTH } from '../src/auth/password.ts'
 import { signSession, verifySession } from '../src/auth/token.ts'
 import {
-  normalizeEmail,
+  normalizeAccount,
   parsePagination,
   validateBike,
   validateDay,
@@ -67,20 +67,36 @@ test('会话令牌:签发方不是本服务的一律拒绝', () => {
   assert.equal(verifySession(foreign, secret), null)
 })
 
-/* ==================== 邮箱与密码 ==================== */
+/* ==================== 账号标识与密码 ==================== */
 
-test('邮箱归一化:去空白并转小写', () => {
-  assert.equal(normalizeEmail('  Rider@Example.COM '), 'rider@example.com')
+test('账号归一化:去空白并转小写', () => {
+  assert.equal(normalizeAccount('  Rider@Example.COM '), 'rider@example.com')
+  assert.equal(normalizeAccount('  Admin '), 'admin', '纯用户名同样要归一化')
 })
 
-test('邮箱校验:明显不合法的输入被拒绝', () => {
-  for (const bad of ['', 'abc', 'a@b', 'a b@c.com', '@b.com', 'a@.com', 123, null, undefined]) {
-    assert.throws(() => normalizeEmail(bad), /邮箱/, `应拒绝：${String(bad)}`)
+test('账号校验:带 @ 走邮箱规则,不带 @ 走用户名规则', () => {
+  // 不带 @ → 用户名:字母/数字开头，只含字母数字下划线连字符，3–30 位
+  assert.equal(normalizeAccount('admin'), 'admin')
+  assert.equal(normalizeAccount('rider_01'), 'rider_01')
+  for (const bad of ['', 'ab', 'a b', 'admin@', '-admin', 'a'.repeat(31)]) {
+    assert.throws(() => normalizeAccount(bad), /邮箱或用户名/, `应拒绝：${String(bad)}`)
+  }
+
+  // 带 @ → 走邮箱规则
+  for (const bad of ['a@b', 'a b@c.com', '@b.com', 'a@.com']) {
+    assert.throws(() => normalizeAccount(bad), /邮箱或用户名/, `应拒绝：${String(bad)}`)
+  }
+
+  // 非字符串 → 直接提示「请输入账号」
+  for (const bad of [123, null, undefined, {}]) {
+    assert.throws(() => normalizeAccount(bad), /请输入账号/, `应拒绝：${String(bad)}`)
   }
 })
 
 test('密码校验:长度不足或超长都拒绝', () => {
-  assert.throws(() => validatePassword('1234567'), /至少/)
+  // 下限是 6（运营者要求放宽，见 auth/password.ts 的说明）
+  assert.throws(() => validatePassword('12345'), /至少/, '5 位应被拒')
+  assert.equal(validatePassword('abc123'), 'abc123', '6 位是当前下限')
   assert.equal(validatePassword('a'.repeat(PASSWORD_MIN_LENGTH)), 'a'.repeat(PASSWORD_MIN_LENGTH))
   assert.throws(() => validatePassword('a'.repeat(201)), /最长/)
   assert.throws(() => validatePassword(undefined), /请输入密码/)

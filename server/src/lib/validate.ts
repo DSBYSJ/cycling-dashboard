@@ -39,8 +39,14 @@ const LIMITS = {
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-/** 允许的邮箱形态:不追求 RFC 完备，只拦住明显不合法的输入 */
+/** 邮箱形态:不追求 RFC 完备，只拦住明显不合法的输入 */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+/**
+ * 纯用户名形态（不含 @）。账号标识同时接受邮箱与用户名，
+ * 是为了让「admin」这类简短账号也能用（运营者自己的需求）。
+ * 限定字母开头、只含字母/数字/下划线/连字符，避免出现怪字符与前后空格。
+ */
+const USERNAME_RE = /^[a-z0-9][a-z0-9_-]{2,29}$/
 
 const SURFACES: SurfaceType[] = ['asphalt', 'cement', 'gravel', 'mixed']
 const TRAFFICS: TrafficLevel[] = ['low', 'medium', 'high']
@@ -286,15 +292,26 @@ export function validateDay(v: unknown): DayCheckIn {
   }
 }
 
-/* ---------------- 账号相关 ---------------- */
+/** ---------------- 账号相关 ---------------- */
 
-/** 邮箱归一化:去空白 + 转小写(库里的唯一索引是 NOCASE，两端一致) */
-export function normalizeEmail(v: unknown): string {
-  if (typeof v !== 'string') fail('请输入邮箱')
-  const email = (v as string).trim().toLowerCase()
-  if (email.length > 254) fail('邮箱过长')
-  if (!EMAIL_RE.test(email)) fail('邮箱格式不正确')
-  return email
+/**
+ * 账号标识归一化:去空白 + 转小写(库里的唯一索引是 NOCASE，两端一致)。
+ *
+ * 同时接受两种形态:
+ *   · 邮箱    —— rider@example.com
+ *   · 用户名  —— admin（不含 @，字母开头，字母/数字/下划线/连字符，3–30 位）
+ *
+ * 数据库字段名仍是 `email`（历史原因，改列名要动唯一索引与既有数据），
+ * 但语义已经是「账号标识」。
+ */
+export function normalizeAccount(v: unknown): string {
+  if (typeof v !== 'string') fail('请输入账号')
+  const account = (v as string).trim().toLowerCase()
+  if (account.length > 254) fail('账号过长')
+  if (!EMAIL_RE.test(account) && !USERNAME_RE.test(account)) {
+    fail('请输入邮箱或用户名（用户名只能含字母、数字、下划线、连字符）')
+  }
+  return account
 }
 
 export function validatePassword(v: unknown): string {

@@ -9,8 +9,16 @@ const KEY_LENGTH = 64
 const SALT_BYTES = 16
 const ALGORITHM = 'scrypt'
 
+/**
+ * 密码长度下限。
+ *
+ * ⚠️ 这里从 8 放宽到了 6 —— 是站点运营者明确要求的（要用 6 位数字密码做测试账号）。
+ * 代价是纯数字密码的可尝试空间从 10^8 降到 10^6，暴力破解难度明显下降。
+ * 缓解措施：登录/注册接口有按 IP 的限流（`AUTH_RATE_LIMIT_MAX`），
+ * 且密码本身仍经 scrypt 加盐哈希存储。**若要恢复更严格的策略，把这里改回 8 即可。**
+ */
+export const PASSWORD_MIN_LENGTH = 6
 /** 密码长度上限:scrypt 的耗时随输入增长，加个上限避免被人用超长密码拖垮 CPU */
-export const PASSWORD_MIN_LENGTH = 8
 export const PASSWORD_MAX_LENGTH = 200
 
 function derive(password: string, salt: Buffer, keyLength: number): Promise<Buffer> {

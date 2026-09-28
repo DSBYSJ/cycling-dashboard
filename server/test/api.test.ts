@@ -100,16 +100,24 @@ test('注册成功:返回用户信息、种下 httpOnly Cookie、邮箱被归一
   assert.match(setCookie, /SameSite=Lax/i)
 })
 
-test('注册:重复邮箱、短密码、非法邮箱都被拒绝', async () => {
+test('注册:重复账号、短密码、非法账号都被拒绝', async () => {
   const dup = await register('rider@example.com')
   assert.equal(dup.statusCode, 409)
   assert.equal(dup.json().error.code, 'email_taken')
 
   const weak = await register('other@example.com', '123')
-  assert.equal(weak.statusCode, 400)
+  assert.equal(weak.statusCode, 400, '3 位密码低于下限应被拒')
 
-  const badEmail = await register('not-an-email')
-  assert.equal(badEmail.statusCode, 400)
+  // 账号标识放宽后，不带 @ 的短字符串是合法用户名了，
+  // 所以这里用「带 @ 但不符合邮箱规则」的形态来验证拒绝逻辑
+  const badAccount = await register('bad@@example')
+  assert.equal(badAccount.statusCode, 400)
+})
+
+test('注册:不带 @ 的纯用户名同样支持', async () => {
+  const res = await register('admin_user')
+  assert.equal(res.statusCode, 201, `注册失败：${res.body}`)
+  assert.equal(res.json().user.email, 'admin_user', '账号标识原样保存（已转小写）')
 })
 
 test('登录:密码错误返回统一的 401，不泄露"邮箱是否存在"', async () => {

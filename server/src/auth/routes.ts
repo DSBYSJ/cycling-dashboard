@@ -4,7 +4,7 @@ import type { AppConfig } from '../config.ts'
 import type { Database } from '../db/index.ts'
 import { AppError, unauthorized } from '../lib/errors.ts'
 import { clearSessionCookie, makeAuthHook, setSessionCookie } from '../lib/http.ts'
-import { normalizeEmail, validatePassword } from '../lib/validate.ts'
+import { normalizeAccount, validatePassword } from '../lib/validate.ts'
 import { hashPassword, verifyPassword } from './password.ts'
 import { signSession } from './token.ts'
 import { createUser, findUserByEmail, findUserById, toPublicUser, updateUserPassword } from '../repos/users.ts'
@@ -27,7 +27,7 @@ export function authRoutes(db: Database, config: AppConfig): FastifyPluginAsync 
           throw new AppError(403, 'register_disabled', '本站已关闭注册，请联系管理员开通账号')
         }
         const body = (request.body ?? {}) as Record<string, unknown>
-        const email = normalizeEmail(body.email)
+        const email = normalizeAccount(body.email)
         const password = validatePassword(body.password)
 
         if (findUserByEmail(db, email)) {
@@ -58,7 +58,7 @@ export function authRoutes(db: Database, config: AppConfig): FastifyPluginAsync 
       config: { rateLimit: { max: config.authRateLimitMax, timeWindow: '10 minutes' } },
       handler: async (request, reply) => {
         const body = (request.body ?? {}) as Record<string, unknown>
-        const email = normalizeEmail(body.email)
+        const email = normalizeAccount(body.email)
         const password = typeof body.password === 'string' ? body.password : ''
 
         const user = findUserByEmail(db, email)

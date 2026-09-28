@@ -13,7 +13,7 @@ const BULK_LIMIT = 5_000
 
 export function rideRoutes(db: Database, config: AppConfig): FastifyPluginAsync {
   return async (app) => {
-    const requireAuth = makeAuthHook(config)
+    const requireAuth = makeAuthHook(config, db)
 
     /** 列表:分页 + 可选日期区间;不含体积最大的轨迹字段 */
     app.get('/', { preHandler: requireAuth }, async (request) => {

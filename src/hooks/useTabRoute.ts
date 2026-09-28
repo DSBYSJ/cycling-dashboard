@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
-export type TabId = 'record' | 'dashboard' | 'bikes'
+export type TabId = 'record' | 'dashboard' | 'bikes' | 'admin'
 
-const TAB_IDS: TabId[] = ['record', 'dashboard', 'bikes']
+const TAB_IDS: TabId[] = ['record', 'dashboard', 'bikes', 'admin']
 const DEFAULT_TAB: TabId = 'record'
 
 /** 解析 location.hash(支持 #record 与 #/record 两种写法),非法值回落到默认分页 */

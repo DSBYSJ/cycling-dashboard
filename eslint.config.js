@@ -25,4 +25,15 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    /*
+     * 站长控制台的共享零件模块：这里刻意把小组件、常量(DANGER_BTN/ACTION_LABEL)、
+     * 格式化函数与取数 hook 放在一起 —— 后台九个面板都要用它们，拆成多个文件
+     * 只会让每个面板 import 三四处。它不是"只导出组件的文件"，所以关掉这条规则。
+     */
+    files: ['src/components/admin/ui.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 )

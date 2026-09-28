@@ -11,7 +11,7 @@ const BULK_LIMIT = 3_000
 
 export function dayRoutes(db: Database, config: AppConfig): FastifyPluginAsync {
   return async (app) => {
-    const requireAuth = makeAuthHook(config)
+    const requireAuth = makeAuthHook(config, db)
 
     app.get('/', { preHandler: requireAuth }, async (request) => {
       return { items: listDays(db, request.user!.userId) }

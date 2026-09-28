@@ -11,7 +11,7 @@ const BULK_LIMIT = 200
 
 export function bikeRoutes(db: Database, config: AppConfig): FastifyPluginAsync {
   return async (app) => {
-    const requireAuth = makeAuthHook(config)
+    const requireAuth = makeAuthHook(config, db)
 
     app.get('/', { preHandler: requireAuth }, async (request) => {
       return { items: listBikes(db, request.user!.userId) }

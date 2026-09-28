@@ -7,6 +7,14 @@ export type AuthStatus = 'checking' | 'anonymous' | 'authenticated'
 export interface AuthContextValue {
   user: PublicUser | null
   status: AuthStatus
+  /**
+   * 是否是管理员。
+   * **只用于决定界面显示**（要不要给「站长控制台」入口）—— 真正的权限在后端判，
+   * 前端把入口藏起来只是体验，不是安全措施。
+   */
+  isAdmin: boolean
+  /** 留言功能是否已对外开放（管理员始终可用，便于站长先自己测） */
+  feedbackEnabled: boolean
   /** 登录/注册/改密码失败的提示文案 */
   error: string | null
   /** 会话失效的提示（显示在登录页顶部，登录成功即清除） */
@@ -22,6 +30,11 @@ export interface AuthContextValue {
    * 返回 true 表示确实处理了（调用方不必再弹「保存失败」）。
    */
   handleAuthFailure(err: unknown): boolean
+  /**
+   * 重新问一次后端「我是谁」。
+   * 用在"身份或设置可能在别处变了"的场合（例如站长刚在后台开启了留言功能）。
+   */
+  refreshIdentity(): Promise<void>
   /** 本地缓存用的键（u<用户ID>）；未登录时为 null */
   userKey: string | null
 }

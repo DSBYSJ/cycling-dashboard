@@ -10,6 +10,7 @@ import type { ImportSummary } from '../utils/backup'
 import Toast, { type ToastMessage, type ToastType } from './Toast'
 import AccountMenu from './AccountMenu'
 import { HAS_FILING, FilingRecords } from './FilingRecords'
+import { useAuth } from '../hooks/useAuth'
 
 /**
  * 分页组件按需加载:「看板」页包含高德地图与四个手写图表,是首屏体积的大头,
@@ -18,12 +19,17 @@ import { HAS_FILING, FilingRecords } from './FilingRecords'
 const RecordTab = lazy(() => import('./tabs/RecordTab'))
 const DashboardTab = lazy(() => import('./tabs/DashboardTab'))
 const BikesTab = lazy(() => import('./tabs/BikesTab'))
+// 站长控制台只有管理员会打开，单独拆包，普通用户根本不会下载到管理端代码
+const AdminTab = lazy(() => import('./admin/AdminTab'))
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'record', label: '记录' },
   { id: 'dashboard', label: '看板' },
   { id: 'bikes', label: '单车与轮胎' },
 ]
+
+/** 只有管理员看得到的分页。权限在后端判 —— 这里只是不给普通用户显示一个打不开的入口 */
+const ADMIN_TAB: { id: TabId; label: string } = { id: 'admin', label: '站长' }
 
 /** 生成下一条记录的路线编号:取现有数字编号最大值 +1,重命名过的非数字名称不参与 */
 function nextRideLabel(rides: RideRecord[]): string {
@@ -92,6 +98,14 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editing, setEditing] = useState<RideRecord | null>(null)
   const { tab, navigate } = useTabRoute()
+  const { isAdmin } = useAuth()
+  const visibleTabs = useMemo(() => (isAdmin ? [...TABS, ADMIN_TAB] : TABS), [isAdmin])
+
+  // 普通账号手动把地址改成 #/admin 时直接送回去：后端一定会 403，
+  // 与其让他看到一个满是报错的页面，不如回到记录页
+  useEffect(() => {
+    if (tab === 'admin' && !isAdmin) navigate('record')
+  }, [tab, isAdmin, navigate])
   const { theme, toggle: toggleTheme } = useTheme()
 
   /** 三个集合的同步状态合并:任意一个离线就整体按离线处理 */
@@ -367,13 +381,13 @@ export default function Dashboard() {
               )}
               <span className="hidden sm:inline">{theme === 'dark' ? '日间' : '夜间'}</span>
             </button>
-            <AccountMenu />
+            <AccountMenu onOpenAdmin={() => navigate('admin')} />
           </div>
         </div>
 
         {/* 分页导航:把长页面拆成三块,每屏只显示相关内容;与 URL hash 同步 */}
         <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 md:px-6" role="tablist">
-          {TABS.map((t) => {
+          {visibleTabs.map((t) => {
             const active = tab === t.id
             return (
               <button
@@ -483,6 +497,8 @@ export default function Dashboard() {
           )}
 
           {tab === 'bikes' && <BikesTab bikes={bikes} onSave={handleSaveBike} onRemove={handleRemoveBike} />}
+
+          {tab === 'admin' && isAdmin && <AdminTab />}
         </Suspense>
 
         <footer className="space-y-2 pb-6 text-center text-[11px] text-t4">

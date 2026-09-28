@@ -1,6 +1,8 @@
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import type { AppConfig } from '../config.ts'
-import { AppError, unauthorized } from './errors.ts'
+import { isAdminSession, type AppConfig } from '../config.ts'
+import type { Database } from '../db/index.ts'
+import { findUserById } from '../repos/users.ts'
+import { AppError, forbidden, unauthorized } from './errors.ts'
 import { verifySession } from '../auth/token.ts'
 
 export const SESSION_COOKIE = 'cd_session'
@@ -26,14 +28,49 @@ export function clearSessionCookie(reply: FastifyReply): void {
   reply.clearCookie(SESSION_COOKIE, { path: '/' })
 }
 
-/** 认证钩子:有合法会话就挂到 request.user，否则 401 */
-export function makeAuthHook(config: AppConfig) {
+/**
+ * 认证钩子:有合法会话就挂到 request.user，否则 401。
+ *
+ * 每次请求都回查一次账号状态，这是刻意的 —— 只看 JWT 的话，站长停用某个账号后，
+ * 对方手里的 Cookie 仍能继续用满整个有效期，那样"停用"就形同虚设。
+ * 顺带比对令牌版本，让改密 / 重置密码也能立即把旧令牌踢下线。
+ * SQLite 本地查询是微秒级，这点开销换得来。
+ */
+export function makeAuthHook(config: AppConfig, db: Database) {
   return async function requireAuth(request: FastifyRequest): Promise<void> {
     const token = request.cookies?.[SESSION_COOKIE]
     if (!token) throw unauthorized()
     const session = verifySession(token, config.jwtSecret)
     if (!session) throw unauthorized('登录已过期，请重新登录', 'session_expired')
+
+    const user = findUserById(db, session.userId)
+    if (!user) throw unauthorized('账号不存在或已被删除')
+    if (user.status === 'disabled') {
+      throw new AppError(403, 'account_disabled', '账号已被停用，请联系管理员')
+    }
+    if (user.token_version !== session.tokenVersion) {
+      throw unauthorized('登录状态已失效，请重新登录', 'session_expired')
+    }
+
     request.user = session
+  }
+}
+
+/**
+ * 管理员钩子:先认证，再判是不是管理员。
+ *
+ * 权限必须在后端判 —— 前端"把入口藏起来"只是体验，不是权限控制。
+ * 白名单来自 .env(adminUserIds / adminAccounts)，而会话里本来就带 userId 与 email，
+ * 所以这里不用查库，也就不存在"数据库被改一下就能提权"的路径。
+ */
+export function makeAdminHook(config: AppConfig, db: Database) {
+  const requireAuth = makeAuthHook(config, db)
+  return async function requireAdmin(request: FastifyRequest): Promise<void> {
+    await requireAuth(request)
+    const session = request.user
+    if (!session || !isAdminSession(config, session)) {
+      throw forbidden('需要管理员权限')
+    }
   }
 }
 

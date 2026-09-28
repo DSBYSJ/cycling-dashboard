@@ -36,14 +36,31 @@ test('密码哈希:错误密码与损坏的存储值都返回 false，且不抛�
 
 test('会话令牌:签发后能验回同一身份', () => {
   const secret = 'a'.repeat(48)
-  const token = signSession(42, 'a@b.com', secret, 30)
+  const token = signSession(42, 'a@b.com', 0, secret, 30)
   const session = verifySession(token, secret)
-  assert.deepEqual(session, { userId: 42, email: 'a@b.com' })
+  assert.deepEqual(session, { userId: 42, email: 'a@b.com', tokenVersion: 0 })
+})
+
+test('会话令牌:令牌版本会被带回来(改密/停用后据此让旧令牌失效)', () => {
+  const secret = 'a'.repeat(48)
+  const token = signSession(7, 'a@b.com', 3, secret, 30)
+  assert.equal(verifySession(token, secret)?.tokenVersion, 3, '版本应原样带回')
+})
+
+test('会话令牌:早于本次升级签发的令牌按版本 0 处理(不会被误踢下线)', () => {
+  const secret = 'a'.repeat(48)
+  // 模拟老令牌:没有 tv 字段
+  const legacy = jwt.sign({ email: 'a@b.com' }, secret, {
+    subject: '9',
+    expiresIn: '1d',
+    issuer: 'cycling-dashboard',
+  })
+  assert.equal(verifySession(legacy, secret)?.tokenVersion, 0)
 })
 
 test('会话令牌:换密钥、被篡改、已过期都必须验不过', () => {
   const secret = 'a'.repeat(48)
-  const token = signSession(1, 'a@b.com', secret, 30)
+  const token = signSession(1, 'a@b.com', 0, secret, 30)
 
   assert.equal(verifySession(token, 'b'.repeat(48)), null, '换密钥应验不过')
 

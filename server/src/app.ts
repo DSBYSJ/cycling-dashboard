@@ -11,6 +11,8 @@ import { authRoutes } from './auth/routes.ts'
 import { rideRoutes } from './routes/rides.ts'
 import { bikeRoutes } from './routes/bikes.ts'
 import { dayRoutes } from './routes/days.ts'
+import { adminRoutes } from './routes/admin.ts'
+import { feedbackRoutes } from './routes/feedback.ts'
 import { listBikes } from './repos/bikes.ts'
 import { listDays } from './repos/days.ts'
 import { listRides } from './repos/rides.ts'
@@ -18,11 +20,13 @@ import { listRides } from './repos/rides.ts'
 /**
  * 组装应用(不在这里 listen，方便测试用 app.inject() 直接发请求)。
  *
- * 路由分四块，前端一律走同源 /api：
- *   /api/auth/*    注册、登录、退出、当前用户
- *   /api/rides/*   骑行记录(列表不含轨迹，详情含)
- *   /api/bikes/*   单车
- *   /api/days/*    每日打卡
+ * 路由分六块，前端一律走同源 /api：
+ *   /api/auth/*     注册、登录、退出、当前用户
+ *   /api/rides/*    骑行记录(列表不含轨迹，详情含)
+ *   /api/bikes/*    单车
+ *   /api/days/*     每日打卡
+ *   /api/feedback/* 用户 → 站长的单向留言(默认关闭，可在后台开启)
+ *   /api/admin/*    站长控制台(整块都要求管理员权限)
  * 另有 /api/health(探活) 与 /api/bootstrap(首屏一次性拉取)。
  */
 export async function buildApp(config: AppConfig, db: Database): Promise<FastifyInstance> {
@@ -48,7 +52,7 @@ export async function buildApp(config: AppConfig, db: Database): Promise<Fastify
     errorResponseBuilder: () => ({ error: { code: 'rate_limited', message: '操作过于频繁，请稍后再试' } }),
   })
 
-  const requireAuth = makeAuthHook(config)
+  const requireAuth = makeAuthHook(config, db)
 
   app.get('/api/health', async () => ({ ok: true, time: new Date().toISOString() }))
 
@@ -76,6 +80,8 @@ export async function buildApp(config: AppConfig, db: Database): Promise<Fastify
   await app.register(rideRoutes(db, config), { prefix: '/api/rides' })
   await app.register(bikeRoutes(db, config), { prefix: '/api/bikes' })
   await app.register(dayRoutes(db, config), { prefix: '/api/days' })
+  await app.register(feedbackRoutes(db, config), { prefix: '/api/feedback' })
+  await app.register(adminRoutes(db, config), { prefix: '/api/admin' })
 
   return app
 }

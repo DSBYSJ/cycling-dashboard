@@ -22,6 +22,8 @@ before(async () => {
       COOKIE_SECURE: 'false',
       ALLOW_REGISTER: 'true',
       AUTH_RATE_LIMIT_MAX: '1000', // 测试里会反复登录，把限流放宽
+      // 管理员白名单：与生产一样放在配置(.env)里，不在数据库 —— 数据库被改也提不了权
+      ADMIN_ACCOUNTS: 'admin-root',
     },
     process.cwd()
   )
@@ -441,4 +443,340 @@ test('未知接口返回结构化 404', async () => {
   const res = await app.inject({ method: 'GET', url: '/api/nope' })
   assert.equal(res.statusCode, 404)
   assert.equal(res.json().error.code, 'not_found')
+})
+
+/* ==================== 站长控制台（权限隔离最关键） ==================== */
+
+const ADMIN_EMAIL = 'admin-root'
+
+function findUserId(email: string): number {
+  const row = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number } | undefined
+  assert.ok(row, `找不到账号 ${email}`)
+  return row.id
+}
+
+/** 管理员账号只注册一次（重复注册会 409），之后复用同一个会话 */
+let cachedAdminCookie: string | null = null
+async function getAdminCookie(): Promise<string> {
+  if (cachedAdminCookie) return cachedAdminCookie
+  const res = await register(ADMIN_EMAIL, 'admin-password-123')
+  assert.equal(res.statusCode, 201, `管理员注册失败：${res.body}`)
+  cachedAdminCookie = cookieOf(res)
+  return cachedAdminCookie
+}
+
+test('站长控制台:未登录访问一律 401', async () => {
+  for (const url of ['/api/admin/overview', '/api/admin/users', '/api/admin/settings', '/api/admin/backups']) {
+    const res = await app.inject({ method: 'GET', url })
+    assert.equal(res.statusCode, 401, `${url} 应要求先登录`)
+  }
+})
+
+test('站长控制台:普通用户访问一律 403（前端藏入口不算权限控制）', async () => {
+  const cookie = await newUserCookie('not-admin@example.com')
+
+  for (const url of ['/api/admin/overview', '/api/admin/users', '/api/admin/settings', '/api/admin/backups', '/api/admin/audit']) {
+    const res = await app.inject({ method: 'GET', url, headers: { cookie } })
+    assert.equal(res.statusCode, 403, `${url} 应拒绝普通用户`)
+    assert.equal(res.json().error.code, 'forbidden')
+  }
+
+  // 写操作更要挡住：普通用户不能改系统设置
+  const patch = await app.inject({
+    method: 'PATCH',
+    url: '/api/admin/settings',
+    headers: { cookie },
+    payload: { key: 'allow_register', value: false },
+  })
+  assert.equal(patch.statusCode, 403)
+
+  // 也不能借后台接口拿到别人的数据
+  const dump = await app.inject({ method: 'GET', url: '/api/admin/rides', headers: { cookie } })
+  assert.equal(dump.statusCode, 403)
+})
+
+test('登录态接口会告知前端是不是管理员（仅用于决定是否显示入口）', async () => {
+  const admin = await getAdminCookie()
+  const adminMe = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: admin } })
+  assert.equal(adminMe.json().isAdmin, true)
+
+  const normal = await newUserCookie('plain-viewer@example.com')
+  const normalMe = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: normal } })
+  assert.equal(normalMe.json().isAdmin, false)
+})
+
+test('站长控制台:管理员可读概览，含统计、设置与服务信息', async () => {
+  const cookie = await getAdminCookie()
+  const res = await app.inject({ method: 'GET', url: '/api/admin/overview', headers: { cookie } })
+  assert.equal(res.statusCode, 200, res.body)
+  const data = res.json()
+  assert.ok(data.users.total >= 2, '应统计到已注册的账号')
+  assert.ok(Array.isArray(data.settings) && data.settings.length > 0)
+  assert.ok(data.settings.some((s: { key: string }) => s.key === 'allow_register'))
+  assert.ok(data.server.nodeVersion.startsWith('v'))
+  assert.ok(Array.isArray(data.recentUsers))
+})
+
+test('站长控制台:用户列表可搜索，且不含密码哈希', async () => {
+  const cookie = await getAdminCookie()
+  await newUserCookie('searchable-user@example.com')
+
+  const res = await app.inject({ method: 'GET', url: '/api/admin/users?search=searchable', headers: { cookie } })
+  assert.equal(res.statusCode, 200)
+  const body = res.json()
+  assert.equal(body.total, 1)
+  assert.equal(body.items[0].email, 'searchable-user@example.com')
+  assert.equal(res.body.includes('password_hash'), false, '任何接口都不该返回密码哈希')
+})
+
+test('站长控制台:停用账号后，对方手里的旧 Cookie 立即失效', async () => {
+  const admin = await getAdminCookie()
+  const email = 'to-be-disabled@example.com'
+  const victimCookie = await newUserCookie(email)
+  const id = findUserId(email)
+
+  // 停用前一切正常
+  const before = await app.inject({ method: 'GET', url: '/api/rides', headers: { cookie: victimCookie } })
+  assert.equal(before.statusCode, 200)
+
+  const off = await app.inject({
+    method: 'PATCH',
+    url: `/api/admin/users/${id}`,
+    headers: { cookie: admin },
+    payload: { status: 'disabled' },
+  })
+  assert.equal(off.statusCode, 200, off.body)
+
+  // 这是本次改造的关键：认证钩子会回查状态，所以旧令牌立刻作废。
+  // 只验 JWT 不查库的话，对方还能继续用满整个会话有效期，"停用"就形同虚设。
+  const after = await app.inject({ method: 'GET', url: '/api/rides', headers: { cookie: victimCookie } })
+  assert.equal(after.statusCode, 403)
+  assert.equal(after.json().error.code, 'account_disabled')
+
+  // 重新登录也会被拒
+  const login = await app.inject({
+    method: 'POST',
+    url: '/api/auth/login',
+    payload: { email, password: 'password-123' },
+  })
+  assert.equal(login.statusCode, 403)
+
+  // 恢复启用后可以重新登录
+  const on = await app.inject({
+    method: 'PATCH',
+    url: `/api/admin/users/${id}`,
+    headers: { cookie: admin },
+    payload: { status: 'active' },
+  })
+  assert.equal(on.statusCode, 200)
+  const relogin = await app.inject({
+    method: 'POST',
+    url: '/api/auth/login',
+    payload: { email, password: 'password-123' },
+  })
+  assert.equal(relogin.statusCode, 200, '启用后应能重新登录')
+})
+
+test('站长控制台:重置密码会踢掉对方旧会话，并只在响应里返回一次明文', async () => {
+  const admin = await getAdminCookie()
+  const email = 'reset-me@example.com'
+  const cookie = await newUserCookie(email)
+  const id = findUserId(email)
+
+  const res = await app.inject({
+    method: 'POST',
+    url: `/api/admin/users/${id}/password`,
+    headers: { cookie: admin },
+    payload: {},
+  })
+  assert.equal(res.statusCode, 200, res.body)
+  const { password, generated } = res.json() as { password: string; generated: boolean }
+  assert.equal(generated, true)
+  assert.ok(password.length >= 8, '生成的临时密码应满足长度要求')
+
+  // 旧会话应立刻失效（令牌版本自增）
+  const old = await app.inject({ method: 'GET', url: '/api/rides', headers: { cookie } })
+  assert.equal(old.statusCode, 401)
+  assert.equal(old.json().error.code, 'session_expired')
+
+  // 新密码可登录
+  const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email, password } })
+  assert.equal(login.statusCode, 200, login.body)
+})
+
+test('站长控制台:删除账号必须手打账号名确认，且数据级联清掉', async () => {
+  const admin = await getAdminCookie()
+  const email = 'delete-me@example.com'
+  const cookie = await newUserCookie(email)
+  const id = findUserId(email)
+  await app.inject({ method: 'PUT', url: '/api/rides/keep1', headers: { cookie }, payload: ride('keep1') })
+
+  // 确认字符串不对 → 拒绝
+  const wrong = await app.inject({
+    method: 'DELETE',
+    url: `/api/admin/users/${id}`,
+    headers: { cookie: admin },
+    payload: { confirm: '随便写点什么' },
+  })
+  assert.equal(wrong.statusCode, 400)
+  assert.match(wrong.json().error.message, /确认删除/)
+  assert.ok(db.prepare('SELECT id FROM users WHERE id = ?').get(id), '确认不通过时不能真的删掉')
+
+  // 正确 → 删除，且 rides 随外键级联清空
+  const ok = await app.inject({
+    method: 'DELETE',
+    url: `/api/admin/users/${id}`,
+    headers: { cookie: admin },
+    payload: { confirm: email },
+  })
+  assert.equal(ok.statusCode, 200, ok.body)
+  assert.equal(db.prepare('SELECT id FROM users WHERE id = ?').get(id), undefined)
+  const rows = db.prepare('SELECT COUNT(*) AS n FROM rides WHERE user_id = ?').get(id) as { n: number }
+  assert.equal(rows.n, 0, '该用户的记录应被级联删除')
+})
+
+test('站长控制台:不能停用自己，也不能动白名单里的管理员（防自锁）', async () => {
+  const admin = await getAdminCookie()
+  const adminId = findUserId(ADMIN_EMAIL)
+
+  const self = await app.inject({
+    method: 'PATCH',
+    url: `/api/admin/users/${adminId}`,
+    headers: { cookie: admin },
+    payload: { status: 'disabled' },
+  })
+  assert.equal(self.statusCode, 400)
+  assert.match(self.json().error.message, /当前登录/)
+
+  const selfDelete = await app.inject({
+    method: 'DELETE',
+    url: `/api/admin/users/${adminId}`,
+    headers: { cookie: admin },
+    payload: { confirm: ADMIN_EMAIL },
+  })
+  assert.equal(selfDelete.statusCode, 400)
+})
+
+test('站长控制台:写操作会落审计，且审计里不出现密码明文', async () => {
+  const admin = await getAdminCookie()
+  const email = 'audit-target@example.com'
+  await newUserCookie(email)
+  const id = findUserId(email)
+
+  // 自己触发一次写操作，避免依赖其它用例的执行顺序
+  const off = await app.inject({
+    method: 'PATCH',
+    url: `/api/admin/users/${id}`,
+    headers: { cookie: admin },
+    payload: { status: 'disabled' },
+  })
+  assert.equal(off.statusCode, 200, off.body)
+
+  const res = await app.inject({ method: 'GET', url: '/api/admin/audit?limit=200', headers: { cookie: admin } })
+  assert.equal(res.statusCode, 200)
+  const items = res.json().items as { action: string; actorId: number; target: string | null; detail: string | null }[]
+
+  const entry = items.find((i) => i.action === 'user.disable' && i.target === `user:${id}`)
+  assert.ok(entry, '应记下一条 user.disable')
+  assert.ok(entry.actorId > 0, '应记下是谁操作的')
+  assert.equal(
+    items.some((i) => (i.detail ?? '').includes('"password"')),
+    false,
+    '审计的 detail 里不该出现 password 字段'
+  )
+})
+
+test('站长控制台:注册开关可在运行时切换（不用改 .env 重启）', async () => {
+  const admin = await getAdminCookie()
+
+  const off = await app.inject({
+    method: 'PATCH',
+    url: '/api/admin/settings',
+    headers: { cookie: admin },
+    payload: { key: 'allow_register', value: false },
+  })
+  assert.equal(off.statusCode, 200, off.body)
+
+  const blocked = await register('blocked-by-setting@example.com')
+  assert.equal(blocked.statusCode, 403)
+  assert.equal(blocked.json().error.code, 'register_disabled')
+
+  // 改回来，并确认立刻恢复
+  await app.inject({
+    method: 'PATCH',
+    url: '/api/admin/settings',
+    headers: { cookie: admin },
+    payload: { key: 'allow_register', value: true },
+  })
+  assert.equal((await register('unblocked-again@example.com')).statusCode, 201)
+})
+
+test('留言:默认不对外开放，管理员可先行测试；开启后用户只能看到自己的', async () => {
+  const normal = await newUserCookie('feedback-viewer@example.com')
+
+  // 默认关闭：普通用户提交被拒
+  const blocked = await app.inject({
+    method: 'POST',
+    url: '/api/feedback',
+    headers: { cookie: normal },
+    payload: { content: '你好' },
+  })
+  assert.equal(blocked.statusCode, 403)
+  assert.equal(blocked.json().error.code, 'feedback_disabled')
+
+  // 管理员始终可用（站长要先能把它跑通再决定对外开不开）
+  const admin = await getAdminCookie()
+  const posted = await app.inject({
+    method: 'POST',
+    url: '/api/feedback',
+    headers: { cookie: admin },
+    payload: { content: '这是一条测试留言' },
+  })
+  assert.equal(posted.statusCode, 201, posted.body)
+
+  const list = await app.inject({ method: 'GET', url: '/api/admin/feedback', headers: { cookie: admin } })
+  assert.equal(list.statusCode, 200)
+  const item = (list.json().items as { id: number; content: string }[]).find((i) => i.content === '这是一条测试留言')
+  assert.ok(item, '后台应能看到这条留言')
+
+  const reply = await app.inject({
+    method: 'POST',
+    url: `/api/admin/feedback/${item.id}/reply`,
+    headers: { cookie: admin },
+    payload: { reply: '收到，谢谢反馈' },
+  })
+  assert.equal(reply.statusCode, 200)
+
+  // 开启后普通用户可用，且只看得到自己的
+  await app.inject({
+    method: 'PATCH',
+    url: '/api/admin/settings',
+    headers: { cookie: admin },
+    payload: { key: 'feedback_enabled', value: true },
+  })
+  const nowOk = await app.inject({
+    method: 'POST',
+    url: '/api/feedback',
+    headers: { cookie: normal },
+    payload: { content: '开启后提交' },
+  })
+  assert.equal(nowOk.statusCode, 201, nowOk.body)
+
+  const mine = await app.inject({ method: 'GET', url: '/api/feedback', headers: { cookie: normal } })
+  assert.equal(mine.json().items.length, 1, '用户只看得到自己提交的')
+  assert.equal(mine.json().items[0].content, '开启后提交')
+})
+
+test('站长控制台:环境变量接口只给键名与是否配置，绝不返回值', async () => {
+  const cookie = await getAdminCookie()
+  const res = await app.inject({ method: 'GET', url: '/api/admin/env', headers: { cookie } })
+  assert.equal(res.statusCode, 200)
+
+  const items = res.json().items as { key: string; configured: boolean; secret: boolean }[]
+  const jwt = items.find((i) => i.key === 'JWT_SECRET')
+  assert.ok(jwt, '应列出 JWT_SECRET 这一项')
+  assert.equal(jwt.secret, true, '应标记为敏感项')
+
+  // 整个响应体里不能出现测试用的那个密钥本身
+  assert.equal(res.body.includes('test-secret-'), false, '不能返回任何配置值')
 })

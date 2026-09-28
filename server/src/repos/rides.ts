@@ -180,3 +180,122 @@ export function deleteRide(db: Database, userId: number, id: string): boolean {
   const result = db.prepare('DELETE FROM rides WHERE user_id = ? AND id = ?').run(userId, id)
   return Number(result.changes) > 0
 }
+
+/* ---------------- 后台用(跨用户) ---------------- */
+
+export interface AdminRideRow extends RideListItem {
+  /** 记录归属的账号，后台列表要显示是谁的 */
+  userEmail: string
+  userId: number
+}
+
+/** 给列清单统一加 r. 前缀；track_json 换成长度判断，与其他列表接口保持一致的不传轨迹约定 */
+const ADMIN_COLUMNS = COLUMNS.split(',')
+  .map((c) => c.trim())
+  .filter(Boolean)
+  .map((c) => (c === 'track_json' ? '(length(r.track_json) > 2) AS has_track' : `r.${c}`))
+  .join(', ')
+
+/**
+ * 跨用户的记录浏览。
+ * 仍然只返回列表字段(不带轨迹) —— 后台一次性列出几百条记录时，
+ * 带上轨迹会让响应变成几十 MB，这条约定在后台同样适用。
+ */
+export function listAllRides(
+  db: Database,
+  opts: { limit: number; offset: number; userId?: number; from?: string; to?: string; city?: string }
+): { items: AdminRideRow[]; total: number } {
+  const where: string[] = []
+  const params: (string | number)[] = []
+  if (opts.userId != null) {
+    where.push('r.user_id = ?')
+    params.push(opts.userId)
+  }
+  if (opts.from) {
+    where.push('r.date >= ?')
+    params.push(opts.from)
+  }
+  if (opts.to) {
+    where.push('r.date <= ?')
+    params.push(opts.to)
+  }
+  if (opts.city) {
+    where.push('r.city_name LIKE ?')
+    params.push(`%${opts.city}%`)
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+
+  const totalRow = db.prepare(`SELECT COUNT(*) AS n FROM rides r ${whereSql}`).get(...params) as { n: number }
+
+  const rows = db
+    .prepare(
+      `SELECT ${ADMIN_COLUMNS}, r.user_id AS owner_id, IFNULL(u.email, '（账号已删除）') AS owner_email
+       FROM rides r LEFT JOIN users u ON u.id = r.user_id
+       ${whereSql}
+       ORDER BY r.date DESC, r.created_at DESC
+       LIMIT ? OFFSET ?`
+    )
+    .all(...params, opts.limit, opts.offset) as Row[]
+
+  return {
+    items: rows.map((row) => ({
+      ...rowToRide(row, false),
+      hasTrack: row.has_track === 1,
+      userId: row.owner_id as number,
+      userEmail: row.owner_email as string,
+    })),
+    total: totalRow.n,
+  }
+}
+
+export function countRides(db: Database): number {
+  const row = db.prepare('SELECT COUNT(*) AS n FROM rides').get() as { n: number }
+  return row.n
+}
+
+export function countRidesCreatedSince(db: Database, sinceMs: number): number {
+  const row = db.prepare('SELECT COUNT(*) AS n FROM rides WHERE created_at >= ?').get(Math.round(sinceMs)) as { n: number }
+  return row.n
+}
+
+export interface RideStats {
+  total: number
+  withTrack: number
+  avgDistanceKm: number | null
+  byCity: { city: string; count: number }[]
+  byMonth: { month: string; count: number }[]
+}
+
+export function rideStats(db: Database): RideStats {
+  const base = db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN length(track_json) > 2 THEN 1 ELSE 0 END) AS with_track,
+              AVG(distance_km) AS avg_distance
+       FROM rides`
+    )
+    .get() as { total: number; with_track: number | null; avg_distance: number | null }
+
+  const byCity = db
+    .prepare(
+      `SELECT CASE WHEN city_name IS NULL OR city_name = '' THEN '（未填）' ELSE city_name END AS city,
+              COUNT(*) AS n
+       FROM rides GROUP BY city ORDER BY n DESC LIMIT 15`
+    )
+    .all() as { city: string; n: number }[]
+
+  const byMonth = db
+    .prepare(
+      `SELECT substr(date, 1, 7) AS month, COUNT(*) AS n
+       FROM rides GROUP BY month ORDER BY month DESC LIMIT 12`
+    )
+    .all() as { month: string; n: number }[]
+
+  return {
+    total: base.total,
+    withTrack: base.with_track ?? 0,
+    avgDistanceKm: base.avg_distance ?? null,
+    byCity: byCity.map((r) => ({ city: r.city, count: r.n })),
+    byMonth: byMonth.map((r) => ({ month: r.month, count: r.n })),
+  }
+}

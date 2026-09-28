@@ -59,6 +59,28 @@ export interface PublicUser {
 }
 
 /**
+ * 登录态查询结果。
+ * isAdmin / feedbackEnabled 只用来决定**界面显示**（要不要给管理员入口、留言入口），
+ * 真正的权限一律在后端判 —— 前端藏起来不等于没权限。
+ */
+export interface MeResult {
+  user: PublicUser
+  isAdmin: boolean
+  feedbackEnabled: boolean
+}
+
+/** 用户 → 站长的单向留言：只能看到自己提交的与站长给自己的回复 */
+export interface FeedbackItem {
+  id: number
+  userId: number
+  content: string
+  status: 'open' | 'done'
+  reply: string | null
+  repliedAt: string | null
+  createdAt: string
+}
+
+/**
  * 列表接口不返回轨迹，只给这个标记；点开详情再取完整轨迹。
  * 标记设为可选：本地新建、还没提交的记录天然没有这个字段。
  */
@@ -107,7 +129,7 @@ function buildQuery(path: string, params?: Record<string, string | number | unde
 }
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body?: unknown,
   options: RequestOptions = {}
@@ -163,11 +185,11 @@ export const api = {
   bootstrap: () => request<BootstrapData>('GET', '/bootstrap'),
 
   register: (email: string, password: string) =>
-    request<{ user: PublicUser }>('POST', '/auth/register', { email, password }),
+    request<MeResult>('POST', '/auth/register', { email, password }),
   login: (email: string, password: string) =>
-    request<{ user: PublicUser }>('POST', '/auth/login', { email, password }),
+    request<MeResult>('POST', '/auth/login', { email, password }),
   logout: () => request<void>('POST', '/auth/logout'),
-  me: () => request<{ user: PublicUser }>('GET', '/auth/me'),
+  me: () => request<MeResult>('GET', '/auth/me'),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<void>('POST', '/auth/password', { currentPassword, newPassword }),
 
@@ -192,4 +214,175 @@ export const api = {
   deleteDay: (id: string) => request<void>('DELETE', `/days/${encodeURIComponent(id)}`),
   bulkDays: (days: DayCheckIn[]) =>
     request<BulkResult>('POST', '/days/bulk', { days }, { timeoutMs: 120_000 }),
+
+  /* 用户端留言（单向，默认关闭，由站长在后台开启） */
+  listFeedback: () => request<{ items: FeedbackItem[] }>('GET', '/feedback'),
+  submitFeedback: (content: string) => request<{ feedback: FeedbackItem }>('POST', '/feedback', { content }),
+}
+
+/* ==================== 站长控制台 ==================== */
+
+export interface AdminSetting {
+  key: 'allow_register' | 'feedback_enabled' | 'invite_required'
+  value: boolean
+  /** 是否被后台改过；没改过时显示的是服务器 .env 里的值 */
+  overridden: boolean
+}
+
+export interface AdminUser {
+  id: number
+  email: string
+  displayName: string | null
+  status: 'active' | 'disabled'
+  createdAt: string
+  lastLoginAt: string | null
+  rideCount: number
+  bikeCount: number
+  dayCount: number
+}
+
+export interface AdminUserDetail {
+  user: AdminUser & {
+    isAdmin: boolean
+    counts: { rides: number; bikes: number; days: number; feedback: number }
+  }
+  recentRides: AdminRide[]
+}
+
+/** 后台看到的记录：比用户端多一个归属账号 */
+export type AdminRide = RideListItem & { userId: number; userEmail: string }
+
+export interface AuditRow {
+  id: number
+  actorId: number
+  action: string
+  target: string | null
+  detail: string | null
+  ip: string | null
+  createdAt: string
+}
+
+export interface BackupFile {
+  name: string
+  sizeKb: number
+  createdAt: string
+}
+
+export interface AdminOverview {
+  users: { total: number; disabled: number; registeredLast7d: number }
+  rides: { total: number; last7d: number }
+  bikes: number
+  days: number
+  feedback: { open: number }
+  invites: number
+  storage: {
+    dbSizeKb: number
+    walSizeKb: number
+    backup: { dir: string; count: number; totalKb: number; keepDays: number }
+  }
+  server: { nodeVersion: string; platform: string; uptimeSec: number; rssMb: number; isProduction: boolean }
+  settings: AdminSetting[]
+  recentUsers: AdminUser[]
+  recentAudit: AuditRow[]
+}
+
+export interface AdminStats {
+  total: number
+  withTrack: number
+  avgDistanceKm: number | null
+  byCity: { city: string; count: number }[]
+  byMonth: { month: string; count: number }[]
+  users: { total: number; disabled: number; registeredLast7d: number }
+}
+
+export interface DbStatus {
+  integrity: string
+  tables: { table: string; rows: number }[]
+}
+
+export interface InviteCode {
+  code: string
+  maxUses: number
+  usedCount: number
+  expiresAt: string | null
+  note: string | null
+  createdAt: string
+  uses: { userId: number; email: string; usedAt: string }[]
+}
+
+export interface AdminFeedbackItem extends FeedbackItem {
+  userEmail: string
+}
+
+export interface LogResult {
+  configured: boolean
+  file: string | null
+  lines: string[]
+  hint?: string
+}
+
+export interface EnvItem {
+  key: string
+  configured: boolean
+  secret: boolean
+}
+
+/**
+ * 站长控制台接口。
+ * 后端每一条都要求管理员权限，普通账号请求会拿到 403 ——
+ * 前端这里不做任何"假设有权限"的乐观处理，失败了就如实显示。
+ */
+export const adminApi = {
+  overview: () => request<AdminOverview>('GET', '/admin/overview'),
+
+  users: (params: { limit?: number; offset?: number; search?: string; sort?: string } = {}) =>
+    request<{ items: AdminUser[]; total: number }>('GET', buildQuery('/admin/users', params)),
+  user: (id: number) => request<AdminUserDetail>('GET', `/admin/users/${id}`),
+  setUserStatus: (id: number, status: 'active' | 'disabled') =>
+    request<{ id: number; email: string; status: string }>('PATCH', `/admin/users/${id}`, { status }),
+  /** 不传 password 就让后端生成随机临时密码；明文只在响应里出现这一次 */
+  resetUserPassword: (id: number, password?: string) =>
+    request<{ password: string; generated: boolean }>('POST', `/admin/users/${id}/password`, password ? { password } : {}),
+  deleteUser: (id: number, confirm: string) =>
+    request<{ ok: boolean }>('DELETE', `/admin/users/${id}`, { confirm }),
+
+  settings: () => request<{ items: AdminSetting[] }>('GET', '/admin/settings'),
+  updateSetting: (key: string, value: boolean) =>
+    request<{ items: AdminSetting[] }>('PATCH', '/admin/settings', { key, value }),
+
+  rides: (params: { limit?: number; offset?: number; userId?: number; from?: string; to?: string; city?: string } = {}) =>
+    request<{ items: AdminRide[]; total: number }>('GET', buildQuery('/admin/rides', params)),
+  ride: (userId: number, id: string) =>
+    request<{ ride: RideRecord }>('GET', `/admin/rides/${userId}/${encodeURIComponent(id)}`),
+  deleteRide: (userId: number, id: string) =>
+    request<{ ok: boolean }>('DELETE', `/admin/rides/${userId}/${encodeURIComponent(id)}`),
+  stats: () => request<AdminStats>('GET', '/admin/stats'),
+
+  backups: () =>
+    request<{ info: { dir: string; count: number; totalKb: number; keepDays: number }; items: BackupFile[] }>(
+      'GET',
+      '/admin/backups'
+    ),
+  createBackup: () => request<{ item: BackupFile; removed: number }>('POST', '/admin/backups', {}),
+  deleteBackup: (name: string) => request<{ ok: boolean }>('DELETE', `/admin/backups/${encodeURIComponent(name)}`),
+  dbStatus: () => request<DbStatus>('GET', '/admin/db-status'),
+
+  audit: (params: { limit?: number; offset?: number; action?: string } = {}) =>
+    request<{ items: AuditRow[]; total: number }>('GET', buildQuery('/admin/audit', params)),
+  pruneAudit: () => request<{ removed: number }>('POST', '/admin/audit/prune', {}),
+
+  feedback: (params: { limit?: number; offset?: number; status?: string } = {}) =>
+    request<{ items: AdminFeedbackItem[]; total: number }>('GET', buildQuery('/admin/feedback', params)),
+  replyFeedback: (id: number, reply: string) =>
+    request<{ ok: boolean }>('POST', `/admin/feedback/${id}/reply`, { reply }),
+  setFeedbackStatus: (id: number, status: 'open' | 'done') =>
+    request<{ ok: boolean }>('PATCH', `/admin/feedback/${id}`, { status }),
+
+  invites: () => request<{ items: InviteCode[] }>('GET', '/admin/invites'),
+  createInvite: (payload: { code?: string; maxUses?: number; expiresAt?: string; note?: string }) =>
+    request<{ item: InviteCode }>('POST', '/admin/invites', payload),
+  deleteInvite: (code: string) => request<{ ok: boolean }>('DELETE', `/admin/invites/${encodeURIComponent(code)}`),
+
+  logs: (lines = 200) => request<LogResult>('GET', buildQuery('/admin/logs', { lines })),
+  env: () => request<{ items: EnvItem[] }>('GET', '/admin/env'),
 }

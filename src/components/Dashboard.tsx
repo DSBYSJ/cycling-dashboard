@@ -101,6 +101,16 @@ export default function Dashboard() {
   const { isAdmin } = useAuth()
   const visibleTabs = useMemo(() => (isAdmin ? [...TABS, ADMIN_TAB] : TABS), [isAdmin])
 
+  /**
+   * 出行建议用的地点：取最近一条带坐标的记录。
+   * 用「最近一次骑过的地方」而不是浏览器定位 —— 零授权打扰，也更贴近真实活动范围。
+   */
+  const adviceLocation = useMemo(() => {
+    const located = rides.filter((r) => r.location)
+    if (!located.length) return null
+    return [...located].sort((a, b) => b.date.localeCompare(a.date))[0].location
+  }, [rides])
+
   // 普通账号手动把地址改成 #/admin 时直接送回去：后端一定会 403，
   // 与其让他看到一个满是报错的页面，不如回到记录页
   useEffect(() => {
@@ -493,6 +503,7 @@ export default function Dashboard() {
               onDelete={handleDelete}
               onRename={handleRename}
               onImport={handleImport}
+              adviceLocation={adviceLocation}
             />
           )}
 

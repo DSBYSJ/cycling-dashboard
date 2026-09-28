@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { EnvData, EnvMeta } from '../types'
+import { kmhToBeaufort } from '../utils/wind'
 
 /**
  * 环境数据采集:
@@ -21,13 +22,12 @@ const HOURLY_NO_PROB = 'temperature_2m,relative_humidity_2m,precipitation,wind_s
 const DAILY_WITH_PROB = 'temperature_2m_mean,precipitation_sum,precipitation_probability_max,wind_speed_10m_max'
 const DAILY_NO_PROB = 'temperature_2m_mean,precipitation_sum,wind_speed_10m_max'
 
-/** km/h 风速 → 蒲福风力等级 */
-export function kmhToBeaufort(kmh: number): number {
-  const thresholds = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 117]
-  let level = 0
-  while (level < thresholds.length && kmh >= thresholds[level]) level++
-  return level
-}
+/**
+ * km/h 风速 → 蒲福风力等级。
+ * 实现已提到 `utils/wind.ts`（出行建议模块也要用，避免 utils 反向依赖 hooks），
+ * 这里继续导出，原有引用方不必改。
+ */
+export { kmhToBeaufort }
 
 /** 统一的 JSON 请求:带超时,由调用处用具体响应类型收窄返回结构 */
 function fetchJSON<T>(url: string, timeoutMs = 10000): Promise<T> {

@@ -2,6 +2,7 @@ import type { Bike, DayCheckIn, RideRecord } from '../../types'
 import type { BikeWithStatus } from '../../utils/tire'
 import type { ImportSummary } from '../../utils/backup'
 import TrendChart from '../TrendChart'
+import TripAdvice from '../TripAdvice'
 import SpeedChart from '../SpeedChart'
 import ElevationChart from '../ElevationChart'
 import MapView from '../MapView'
@@ -22,6 +23,8 @@ interface Props {
   onDelete: (id: string) => void
   onRename: (id: string, label: string) => void
   onImport: (summary: ImportSummary) => Promise<{ rides: number; bikes: number; days: number }>
+  /** 出行建议用的常用地点（最近一次带坐标的记录）；没有记录时为 null */
+  adviceLocation: { lat: number; lon: number } | null
 }
 
 /** 「看板」分页:评分趋势 + 速度/海拔曲线 + 轨迹地图 + 评分雷达 + 历史记录 + 数据备份 */
@@ -37,9 +40,12 @@ export default function DashboardTab({
   onDelete,
   onRename,
   onImport,
+  adviceLocation,
 }: Props) {
   return (
     <>
+      <TripAdvice location={adviceLocation} />
+
       <section className="card">
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">
           📈 评分趋势（最近 10 次）

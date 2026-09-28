@@ -142,6 +142,18 @@ export default function AboutPage() {
               <FilingRecords />
             </p>
           )}
+
+          {/* 隐私政策与用户协议：此前只在登录后的页脚有入口，访客看不到 —— 公开页更该给 */}
+          <p className="mt-3 text-[11px] text-t5">
+            <a className="transition hover:text-t2" href="./privacy.html" target="_blank" rel="noreferrer">
+              隐私政策
+            </a>
+            <span className="mx-2 text-t6">·</span>
+            <a className="transition hover:text-t2" href="./terms.html" target="_blank" rel="noreferrer">
+              用户协议
+            </a>
+          </p>
+
           <a
             href={APP_ENTRY}
             className="mt-4 inline-flex items-center gap-1 text-[11px] text-t4 transition hover:text-t2"

@@ -1,5 +1,6 @@
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Eye, EyeOff, Moon, ShieldCheck, Sun } from 'lucide-react'
+import { api } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
 import { HAS_FILING, FilingRecords } from '../FilingRecords'
@@ -40,14 +41,54 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
+  /**
+   * 注册开关：`null` = 还没问到，此时按「开放」显示。
+   * 只有确定拿到 false 才改成「暂停注册」—— 问不到（离线、后端抽风）时宁可少报，
+   * 不要谎称暂停。真正拦人的是后端 `/register`，这里只负责界面别说错。
+   */
+  const [registerOpen, setRegisterOpen] = useState<boolean | null>(null)
+  /** 点了「暂停注册」时的说明；与「会话失效」的 notice 分开，避免互相覆盖 */
+  const [pausedHint, setPausedHint] = useState<string | null>(null)
+
+  const registerPaused = registerOpen === false
+
+  useEffect(() => {
+    let alive = true
+    api
+      .authConfig()
+      .then((cfg) => {
+        if (alive) setRegisterOpen(cfg.allowRegister)
+      })
+      .catch(() => {
+        /* 问不到就维持「开放」的显示，能不能注册最终由后端说了算 */
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // 万一用户先点了「注册」、随后才拿到「已暂停」，把他送回登录表单并说明原因
+  useEffect(() => {
+    if (registerPaused && mode === 'register') {
+      setMode('login')
+      setPausedHint('本站已暂停注册，如需账号请联系站长')
+    }
+  }, [registerPaused, mode])
+
   const switchMode = useCallback(
     (next: Mode) => {
+      // 注册已暂停：不切表单，给一句说明
+      if (next === 'register' && registerPaused) {
+        setPausedHint('本站已暂停注册，如需账号请联系站长')
+        return
+      }
       setMode(next)
       setLocalError(null)
+      setPausedHint(null)
       setConfirm('')
       clearError()
     },
-    [clearError]
+    [clearError, registerPaused]
   )
 
   const handleSubmit = useCallback(
@@ -112,10 +153,11 @@ export default function AuthPage() {
             {(
               [
                 ['login', '登录'],
-                ['register', '注册'],
+                ['register', registerPaused ? '暂停注册' : '注册'],
               ] as const
             ).map(([value, label]) => {
               const active = mode === value
+              const paused = registerPaused && value === 'register'
               return (
                 <button
                   key={value}
@@ -124,7 +166,11 @@ export default function AuthPage() {
                   aria-selected={active}
                   onClick={() => switchMode(value)}
                   className={`rounded-md px-3 py-1.5 text-sm transition ${
-                    active ? 'bg-surface font-medium text-t1 shadow-sm' : 'text-t3 hover:text-t1'
+                    paused
+                      ? 'cursor-not-allowed text-t5'
+                      : active
+                        ? 'bg-surface font-medium text-t1 shadow-sm'
+                        : 'text-t3 hover:text-t1'
                   }`}
                 >
                   {label}
@@ -136,6 +182,11 @@ export default function AuthPage() {
           {notice && (
             <div className={BANNER_NOTICE} role="status">
               {notice}
+            </div>
+          )}
+          {pausedHint && (
+            <div className={BANNER_NOTICE} role="status">
+              {pausedHint}
             </div>
           )}
           {shownError && (
@@ -219,7 +270,9 @@ export default function AuthPage() {
           </form>
 
           <p className="mt-4 text-center text-[11px] leading-5 text-t4">
-            {mode === 'login' ? (
+            {registerPaused ? (
+              '本站已暂停注册，如需账号请联系站长'
+            ) : mode === 'login' ? (
               <>
                 还没有账号？点上面的<b className="font-medium text-t3">注册</b>，填账号和密码就行
               </>
@@ -236,6 +289,13 @@ export default function AuthPage() {
             <br />
             登录态存在 httpOnly Cookie 里，网页脚本读不到
           </span>
+        </p>
+
+        {/* 公开页入口：没有账号的人也能看到这个项目做了什么、用了什么技术 */}
+        <p className="mt-4 text-center text-[11px] text-t5">
+          <a href="#/about" className="transition hover:text-t2">
+            了解本站 · 功能与技术
+          </a>
         </p>
 
         {/* 备案信息来自环境变量；未配置时整块不渲染 */}

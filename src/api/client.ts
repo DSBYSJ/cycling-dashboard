@@ -69,6 +69,16 @@ export interface MeResult {
   feedbackEnabled: boolean
 }
 
+/**
+ * 公开的运行开关快照（`GET /auth/config`，**未登录也能调**）。
+ * 登录页用它决定入口该显示「注册」还是「暂停注册」——
+ * 只是界面呈现，真正拦人的仍是后端 `/register`。
+ */
+export interface AuthConfig {
+  allowRegister: boolean
+  inviteRequired: boolean
+}
+
 /** 用户 → 站长的单向留言：只能看到自己提交的与站长给自己的回复 */
 export interface FeedbackItem {
   id: number
@@ -190,6 +200,8 @@ export const api = {
     request<MeResult>('POST', '/auth/login', { email, password }),
   logout: () => request<void>('POST', '/auth/logout'),
   me: () => request<MeResult>('GET', '/auth/me'),
+  /** 未登录也能调：登录页据此把入口显示成「注册」或「暂停注册」 */
+  authConfig: () => request<AuthConfig>('GET', '/auth/config'),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<void>('POST', '/auth/password', { currentPassword, newPassword }),
 

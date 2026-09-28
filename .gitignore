@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+# Vite 加载 TS 配置时生成的临时文件：正常情况下会自行删除，偶尔残留会干扰 eslint
+vite.config.ts.timestamp-*.mjs
 
 # 环境变量:含高德 Key 与安全密钥,绝不提交(参考 .env.example 自行创建)
 .env

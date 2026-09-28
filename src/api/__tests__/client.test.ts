@@ -44,6 +44,15 @@ describe('API 客户端', () => {
     expect(init.credentials).toBe('include')
   })
 
+  it('注册开关接口：路径为 /auth/config，且如实反映「已暂停」', async () => {
+    // 登录页靠它决定入口显示「注册」还是「暂停注册」，路径写错会静默退回「注册」
+    const spy = mockFetch(() => fakeResponse(200, { allowRegister: false, inviteRequired: false }))
+    const cfg = await api.authConfig()
+    expect(String(spy.mock.calls[0][0])).toBe('/api/auth/config')
+    expect(cfg.allowRegister).toBe(false)
+    expect(cfg.inviteRequired).toBe(false)
+  })
+
   it('204（退出登录、改密码）返回 undefined，不尝试解析 JSON', async () => {
     mockFetch(() => fakeResponse(204))
     await expect(api.logout()).resolves.toBeUndefined()

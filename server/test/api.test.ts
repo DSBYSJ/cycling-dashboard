@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify'
 import { loadConfig } from '../src/config.ts'
 import { openDatabase, type Database } from '../src/db/index.ts'
 import { buildApp } from '../src/app.ts'
+import { setBoolSetting } from '../src/lib/settings.ts'
 
 /**
  * 集成测试:用真实 SQLite(内存库) + Fastify 的 inject 发真实 HTTP 请求，
@@ -206,6 +207,37 @@ test('修改密码:当前密码不对要拒绝，改成功后旧密码失效、�
     payload: { email: 'changepw@example.com', password: 'new-password-1' },
   })
   assert.equal(newLogin.statusCode, 200)
+})
+
+/* ==================== 公开的开关快照 ==================== */
+
+test('GET /auth/config：未登录也能拿到注册开关（登录页据此显示「暂停注册」）', async () => {
+  const res = await app.inject({ method: 'GET', url: '/api/auth/config' })
+  assert.equal(res.statusCode, 200)
+  const body = res.json()
+  assert.equal(typeof body.allowRegister, 'boolean')
+  assert.equal(typeof body.inviteRequired, 'boolean')
+  // 公开接口：只给两个布尔值，不能夹带任何用户信息
+  assert.equal(body.user, undefined)
+})
+
+test('关闭注册后 config 如实反映，且注册接口确实被拒', async () => {
+  setBoolSetting(db, 'allow_register', false)
+  try {
+    const cfg = await app.inject({ method: 'GET', url: '/api/auth/config' })
+    assert.equal(cfg.json().allowRegister, false)
+
+    const reg = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { email: 'config-probe@test.dev', password: 'secret123' },
+    })
+    assert.equal(reg.statusCode, 403)
+    assert.equal(reg.json().error.code, 'register_disabled')
+  } finally {
+    // 复原，避免影响后面的用例
+    setBoolSetting(db, 'allow_register', true)
+  }
 })
 
 /* ==================== 骑行记录 ==================== */

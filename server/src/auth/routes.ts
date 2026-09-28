@@ -45,6 +45,17 @@ export function authRoutes(db: Database, config: AppConfig): FastifyPluginAsync 
   return async (app) => {
     const requireAuth = makeAuthHook(config, db)
 
+    /**
+     * 公开的开关快照：登录页据此决定「注册」入口显示为「注册」还是「暂停注册」。
+     *
+     * 只返回两个布尔值、不含任何用户信息，所以**不需要登录** —— 它恰恰要在
+     * 没有会话时才能调用。真正的拦截仍在 /register 里，这里只是让界面别撒谎。
+     */
+    app.get('/config', async () => ({
+      allowRegister: getBoolSetting(db, 'allow_register', config.allowRegister),
+      inviteRequired: getBoolSetting(db, 'invite_required', false),
+    }))
+
     app.post('/register', {
       config: { rateLimit: { max: config.authRateLimitMax, timeWindow: '10 minutes' } },
       handler: async (request, reply) => {

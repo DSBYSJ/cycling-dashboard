@@ -27,3 +27,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 服务器运维脚本与部署文档：含本机服务器的 IP / 域名 / 路径等信息，
+# 不随公开仓库传播（文件在本机保留，只是不进 git）
+server/scripts/
+server/README.md

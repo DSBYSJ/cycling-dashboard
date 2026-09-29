@@ -7,6 +7,8 @@ import {
   SITE_TAGLINE,
   TECH_LAYERS,
 } from '../about'
+// 直接读组件源码文本：这条约束针对的是"界面上出现什么字"，源码检查比渲染测试更直接
+import routeReviewsSource from '../../components/RouteReviews.tsx?raw'
 
 /** 把所有对外文案拍平成一条数组，方便整体检查 */
 function allTexts(): string[] {
@@ -58,5 +60,11 @@ describe('关于页内容', () => {
     for (const text of allTexts()) {
       expect(text).not.toMatch(/即将|计划中|待开放|敬请期待|TODO/)
     }
+  })
+
+  it('路线评价组件不得出现 UGC 预留表述 —— 个人备案不能有评论区，这不是"待开放"而是不开放', () => {
+    // 历史教训：这里曾放着一个「其他骑友的评分与评论 · 待开放」占位，
+    // 等于对外宣示"计划提供 UGC"。这条用例防止它以任何形式回来。
+    expect(routeReviewsSource).not.toMatch(/待开放|其他骑友|骑友评分|敬请期待|社区数据|将展示真实评价/)
   })
 })

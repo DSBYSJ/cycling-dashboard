@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react'
-import { MessageSquare, Star, Users } from 'lucide-react'
+import { MessageSquare, ShieldCheck } from 'lucide-react'
 import type { RideRecord } from '../types'
 
 interface Props {
@@ -10,9 +10,12 @@ interface Props {
 }
 
 /**
- * 路线评价:展示所选路线的评价信息。
- * 目前为个人本地应用,「其他骑友的评分与评论」暂为预留区域;
- * 先展示自己在该路线上的历史骑行统计,避免面板空置。
+ * 路线评价:只展示自己在该路线上的历史骑行统计。
+ *
+ * ⚠️ **刻意不做任何 UGC 功能**（评分分布、他人反馈、评论区）——
+ * 这不是"还没做"，而是不能做：站点为个人主体 ICP 备案，
+ * 属非经营性、不能有 UGC。界面上如实说明这一点，
+ * 避免给人"以后会有社区功能"的预期 —— 占位本身就会构成"计划提供 UGC"的表象。
  */
 function RouteReviews({ routeName, rides }: Props) {
   const stats = useMemo(() => {
@@ -72,23 +75,11 @@ function RouteReviews({ routeName, rides }: Props) {
             </div>
           )}
 
-          {/* 他人评价:预留区域 */}
-          <div className="rounded-lg border border-dashed border-line px-3 py-3">
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-t3">
-              <Users className="h-3.5 w-3.5" aria-hidden="true" />
-              其他骑友的评分与评论
-              <span className="rounded bg-fill-strong px-1.5 py-0.5 text-[10px] text-t3">待开放</span>
-            </div>
-            <ul className="space-y-1 text-[11px] leading-5 text-t4">
-              <li>· 骑友评分分布与综合评价</li>
-              <li>· 路况、坡度与车流量反馈</li>
-              <li>· 最佳骑行时段与注意事项</li>
-            </ul>
-            <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-4 text-t4">
-              <Star className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-              <span>本应用目前为本地个人版本，暂无社区数据；接入服务端后此处将展示真实评价</span>
-            </p>
-          </div>
+          {/* 合规声明：个人备案不能有 UGC —— 如实说明"不提供"，不留"以后开放"的口子 */}
+          <p className="flex items-start gap-1.5 rounded-lg border border-dashed border-line px-3 py-2.5 text-[11px] leading-5 text-t4">
+            <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>本站为个人骑行记录工具，仅展示本人记录的数据与评价，不含评论等社区功能。</span>
+          </p>
         </>
       )}
     </section>

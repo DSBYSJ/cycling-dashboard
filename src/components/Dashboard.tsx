@@ -6,7 +6,7 @@ import { useLegacyMigration } from '../hooks/useLegacyMigration'
 import { useTheme } from '../hooks/useTheme'
 import { useTabRoute, type TabId } from '../hooks/useTabRoute'
 import { withTireStatus } from '../utils/tire'
-import { describeSimplification, simplifyTrack } from '../utils/trackSimplify'
+import { describeSimplification, simplifyRide } from '../utils/trackSimplify'
 import type { ImportSummary } from '../utils/backup'
 import Toast, { type ToastMessage, type ToastType } from './Toast'
 import AccountMenu from './AccountMenu'
@@ -226,16 +226,19 @@ export default function Dashboard() {
   const handleSave = useCallback(
     async (record: RideRecord) => {
       /**
-       * 保存前先把轨迹抽稀到后端上限（2 万点）以内。
+       * 保存前先把两处超限风险都处理掉：**轨迹点**与**速度序列**。
        *
-       * 不做这一步，长距离骑行或手机直录会直接撞上服务端校验，
-       * 用户只看到「保存失败：轨迹点过多」—— 一次辛苦骑下来的数据全丢。
-       * 而多出来的那些点对显示毫无意义：屏幕就这么宽，相邻点早就落进同一个像素了。
+       * 服务端对这两者是**各查各的**（各有 2 万点上限）。第一次只抽稀了轨迹，
+       * 结果长距离骑行的记录还是存不进去 —— 报错从「轨迹点过多」
+       * 变成了「速度序列过长」。所以这里用 simplifyRide() 一次把两处都过一遍。
        *
-       * 刻意**不静默处理**：精简了就明确告诉用户精简了多少（见下面的提示）。
+       * 不做的话，用户一次辛苦骑下来的数据会整个丢掉。
+       * 而多出来的那些点对显示毫无意义：屏幕就这么宽，相邻点早落进同一个像素了。
+       *
+       * 刻意**不静默处理**：精简了就明确告诉用户精简了什么（见下面的提示）。
        */
-      const simplified = simplifyTrack(record.track)
-      const next = simplified.changed ? { ...record, track: simplified.points } : record
+      const simplified = simplifyRide(record)
+      const next = simplified.ride
 
       // 新建记录没有编号时自动分配(1、2、3…),之后可在历史列表里重命名
       await save(next.label ? next : { ...next, label: nextRideLabel(rides) })

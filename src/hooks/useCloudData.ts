@@ -3,7 +3,7 @@ import { api, type BulkResult, type RideListItem } from '../api/client'
 import type { Bike, DayCheckIn, RideRecord } from '../types'
 import { useAuth } from './useAuth'
 import { putCacheMany, readCache, removeFromCache, replaceCache, type CacheStore } from '../utils/localCache'
-import { simplifyTrack } from '../utils/trackSimplify'
+import { simplifyRide } from '../utils/trackSimplify'
 
 /**
  * 数据层：**云端为主 + 本地只读缓存**。
@@ -241,20 +241,21 @@ async function toWritableRide(ride: RideListItem): Promise<RideRecord> {
 }
 
 /**
- * 写入前的最后一道防线：把轨迹抽稀到服务端上限以内。
+ * 写入前的最后一道防线：把**轨迹点与速度序列**都抽稀到服务端上限以内。
  *
- * 正常路径（表单保存）已经在 `Dashboard.handleSave` 抽过并提示过用户了，
+ * 正常路径（表单保存）已经在 `Dashboard.handleSave` 处理过并提示过用户了，
  * 这里再兜一次是为了覆盖**不经过表单的写入路径** ——
  * 批量导入、旧数据迁移（`putMany` → `/rides/bulk`）都从这儿走。
- * 服务端有 2 万点的硬校验，任何一条路径漏掉抽稀，用户看到的就是
- * 「保存失败：轨迹点过多」整条记录写不进去。
  *
- * 已经是小轨迹时 `simplifyTrack` 直接返回原对象，所以这次兜底几乎零开销。
+ * ⚠️ 服务端对 `track` 与 `speedSeries` 是**两条独立的上限**（各 2 万点）。
+ * 第一次只抽稀了轨迹，用户依然存不进去 —— 报错换成了「速度序列过长」。
+ * 所以这里统一走 `simplifyRide()`，一次把两处都处理好。
+ *
+ * 已经是小数据时 `simplifyRide` 直接返回原对象，所以这次兜底几乎零开销。
  * 刻意**不在这里提示用户**（提示只在真正由用户触发的保存里给），避免重复打扰。
  */
-function simplifyRideTrack(ride: RideRecord): RideRecord {
-  const simplified = simplifyTrack(ride.track)
-  return simplified.changed ? { ...ride, track: simplified.points } : ride
+function simplifyRideForWrite(ride: RideRecord): RideRecord {
+  return simplifyRide(ride).ride
 }
 
 const rideAdapter: Adapter<RideListItem> = {
@@ -262,10 +263,10 @@ const rideAdapter: Adapter<RideListItem> = {
   sort: rideSort,
   fetchAll: fetchAllRides,
   put: async (ride) => {
-    await api.putRide(simplifyRideTrack(await toWritableRide(ride)))
+    await api.putRide(simplifyRideForWrite(await toWritableRide(ride)))
   },
   // 批量导入的记录自带完整轨迹（来自备份文件或旧数据迁移），无需补全
-  putMany: (rides) => api.bulkRides(rides.map(simplifyRideTrack)),
+  putMany: (rides) => api.bulkRides(rides.map(simplifyRideForWrite)),
   remove: (id) => api.deleteRide(id),
   /**
    * 列表接口不带轨迹，而缓存里可能已经存着之前拉过的详情。

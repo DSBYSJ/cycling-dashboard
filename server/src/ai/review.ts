@@ -1,3 +1,5 @@
+import type { CoachReview } from '../../../src/types.ts'
+
 /**
  * 结构化输出的校验层。
  *
@@ -9,6 +11,9 @@
  *   3. 截断保护：超长字段直接截断，避免一句跑飞的话把前端布局撑破
  *
  * 校验失败**不返回半成品**。宁可降级到规则引擎，也不要给用户看一个缺字段的卡片。
+ *
+ * `CoachReview` 的形状定义在前端 `src/types.ts` —— 前端要渲染它，后端要产出它，
+ * 共用一份定义才不会漂移（与项目其它模型的处理方式一致）。
  */
 
 /** 字段长度上限（超出截断，同时防止 prompt 注入式的超长输出打爆前端） */
@@ -17,13 +22,7 @@ const MAX_ITEM = 80
 const MAX_HOW = 140
 const MAX_ITEMS = 3
 
-export interface CoachReview {
-  summary: string
-  highlights: string[]
-  improvements: { point: string; how: string }[]
-  nextGoal: string
-  risk: string | null
-}
+export type { CoachReview }
 
 export class ReviewFormatError extends Error {
   constructor(message: string) {

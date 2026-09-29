@@ -4,6 +4,7 @@ import type { BikeWithStatus } from '../../utils/tire'
 import RideForm from '../RideForm'
 import RideCheckIn from '../RideCheckIn'
 import ScoreCard from '../ScoreCard'
+import CoachReviewCard from '../CoachReviewCard'
 import RouteReviews from '../RouteReviews'
 import StatsOverview from '../StatsOverview'
 import MaintenanceAlerts from '../MaintenanceAlerts'
@@ -109,6 +110,12 @@ export default function RecordTab({
             </div>
           )}
         </section>
+
+        {/*
+          AI 教练复盘。权限与可用性由组件内部判断：
+          非管理员账号、或后端未配置 API Key 时，整块不渲染（连按钮都不出现）。
+        */}
+        {selected && <CoachReviewCard record={selected} />}
 
         {/* 路线评价:自己在该路线上的历史统计 + 他人评价(预留) */}
         <RouteReviews routeName={selected?.routeName} rides={rides} />

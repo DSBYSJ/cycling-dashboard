@@ -53,6 +53,25 @@ describe('API 客户端', () => {
     expect(cfg.inviteRequired).toBe(false)
   })
 
+  it('AI 状态接口：路径为 /ai/status（仅管理员可访问，调用方须先确认 isAdmin）', async () => {
+    const spy = mockFetch(() => fakeResponse(200, { available: true, model: 'deepseek-chat', stats: {} }))
+    const status = await api.aiStatus()
+    expect(String(spy.mock.calls[0][0])).toBe('/api/ai/status')
+    expect(status.available).toBe(true)
+  })
+
+  it('AI 复盘接口：POST /ai/coach，rideId 走请求体 —— 不拼进 URL，避免 id 里的特殊字符出问题', async () => {
+    const spy = mockFetch(() =>
+      fakeResponse(200, { source: 'model', review: { summary: 's' }, fallback: { comment: '', suggestions: [] } })
+    )
+    const res = await api.aiCoach('ride-1')
+    const init = spy.mock.calls[0][1] as RequestInit
+    expect(String(spy.mock.calls[0][0])).toBe('/api/ai/coach')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(String(init.body))).toEqual({ rideId: 'ride-1' })
+    expect(res.source).toBe('model')
+  })
+
   it('204（退出登录、改密码）返回 undefined，不尝试解析 JSON', async () => {
     mockFetch(() => fakeResponse(204))
     await expect(api.logout()).resolves.toBeUndefined()

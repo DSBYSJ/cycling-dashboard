@@ -195,3 +195,68 @@ export const TRAFFIC_LABELS: Record<TrafficLevel, string> = {
   medium: '中',
   high: '多',
 }
+
+/* ---------------- AI 骑行教练 ---------------- */
+
+/**
+ * 模型生成的复盘结构。
+ *
+ * **定义在前端是有意的**：后端 `server/src/ai/` 从这个文件引入同一份类型
+ * （与项目既有约定一致 —— 两边共用一套模型，避免"改了一边忘了另一边"）。
+ * 后端会对模型返回的内容做严格校验后才产出这个结构，
+ * 所以前端拿到的一定是合法形状，不需要再做防御性判断。
+ */
+export interface CoachReview {
+  /** 一句话总评 */
+  summary: string
+  /** 做得好的地方，1-3 条 */
+  highlights: string[]
+  /** 改进建议，按重要性排序，1-3 条 */
+  improvements: { point: string; how: string }[]
+  /** 下一次骑行的可量化目标 */
+  nextGoal: string
+  /** 需要警惕的风险；没有时为 null */
+  risk: string | null
+}
+
+/** AI 调用统计（站长排查用：模型是超时、限流，还是返回格式不对） */
+export interface AiStats {
+  total: number
+  ok: number
+  failed: number
+  failRate: number
+  avgDurationMs: number
+  promptTokens: number
+  completionTokens: number
+}
+
+/** `GET /api/ai/status` 的返回。**仅管理员可访问** */
+export interface AiStatus {
+  available: boolean
+  /** 未配置 API Key 时为 null */
+  model: string | null
+  stats: AiStats
+}
+
+/** `POST /api/ai/coach` 的返回 */
+export interface CoachResult {
+  /** 模型给出的复盘；**降级时为 null** */
+  review: CoachReview | null
+  /** model = 模型生成；fallback = 降级到规则引擎（AI 不可用，不是失败） */
+  source: 'model' | 'fallback'
+  /** 命中缓存时为 true（同一份数据不重复调用、不重复计费） */
+  cached: boolean
+  /** 降级原因，用于向用户如实说明 */
+  fallbackReason: string | null
+  usage: { promptTokens: number; completionTokens: number } | null
+  durationMs: number
+  attempts: number
+  /** 送进 prompt 的字符数（对比原始记录的体积，说明上下文压缩的效果） */
+  promptChars: number
+  model: string
+  /**
+   * 降级时展示的内容：记录里**本来就存着**的规则引擎建议。
+   * 由后端一并返回，前端不必再发一次请求。
+   */
+  fallback: { comment: string; suggestions: string[] }
+}

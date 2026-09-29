@@ -1,4 +1,4 @@
-import type { Bike, DayCheckIn, RideRecord } from '../types'
+import type { AiStatus, Bike, CoachResult, DayCheckIn, RideRecord } from '../types'
 
 /**
  * 后端 API 客户端。
@@ -202,6 +202,19 @@ export const api = {
   me: () => request<MeResult>('GET', '/auth/me'),
   /** 未登录也能调：登录页据此把入口显示成「注册」或「暂停注册」 */
   authConfig: () => request<AuthConfig>('GET', '/auth/config'),
+
+  /**
+   * AI 骑行教练是否可用。**仅管理员可访问**（普通账号会拿到 403），
+   * 所以调用方必须先确认 isAdmin —— 前端藏入口不是权限控制，但在这里能避免无谓的失败请求。
+   */
+  aiStatus: () => request<AiStatus>('GET', '/ai/status'),
+
+  /**
+   * 生成某条记录的 AI 复盘。
+   * 超时给到 25 秒（后端自己的模型超时是 20 秒）——
+   * 前端若先超时，后端还在跑并可能已经计费，用户却看到"失败"，那是最糟的组合。
+   */
+  aiCoach: (rideId: string) => request<CoachResult>('POST', '/ai/coach', { rideId }, { timeoutMs: 25_000 }),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<void>('POST', '/auth/password', { currentPassword, newPassword }),
 

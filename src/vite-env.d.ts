@@ -1,5 +1,11 @@
 /// <reference types="vite/client" />
 
+/**
+ * 构建时由 vite.config.ts 从 package.json 注入的版本号（形如 `1.0.0`）。
+ * 读取统一走 `src/version.ts`，别在组件里直接用它 —— 那边有未注入时的兜底。
+ */
+declare const __APP_VERSION__: string
+
 interface ImportMetaEnv {
   /**
    * 后端地址。同源部署时留空（前端直接请求 /api/...，由 Nginx 反代）；

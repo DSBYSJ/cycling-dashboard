@@ -1,5 +1,6 @@
 import { ArrowRight, Bike, Database, Gauge, Info, Moon, Route, ShieldCheck, SlidersHorizontal, Sun } from 'lucide-react'
 import { useTheme } from '../hooks/useTheme'
+import { AppVersion } from './AppVersion'
 import { HAS_FILING, FilingRecords } from './FilingRecords'
 import {
   COMPLIANCE_NOTE,
@@ -142,6 +143,11 @@ export default function AboutPage() {
               <FilingRecords />
             </p>
           )}
+
+          {/* 版本号：访客与面试官都能看到「这份代码是哪个版本」 */}
+          <p className="mt-3 text-[11px] text-t5">
+            <AppVersion />
+          </p>
 
           {/* 隐私政策与用户协议：此前只在登录后的页脚有入口，访客看不到 —— 公开页更该给 */}
           <p className="mt-3 text-[11px] text-t5">

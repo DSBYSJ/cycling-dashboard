@@ -3,6 +3,7 @@ import { Eye, EyeOff, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { api } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
+import { AppVersion } from '../AppVersion'
 import { HAS_FILING, FilingRecords } from '../FilingRecords'
 
 /**
@@ -304,6 +305,10 @@ export default function AuthPage() {
             <FilingRecords />
           </p>
         )}
+
+        <p className="mt-3 text-center text-[11px] text-t5">
+          <AppVersion />
+        </p>
       </div>
     </div>
   )

@@ -12,6 +12,8 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
+    // vite.config.ts 直接 import package.json 取版本号，需要打开 JSON 模块支持
+    "resolveJsonModule": true,
 
     /* Linting */
     "strict": true,

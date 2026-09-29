@@ -10,6 +10,7 @@ import { describeSimplification, simplifyRide } from '../utils/trackSimplify'
 import type { ImportSummary } from '../utils/backup'
 import Toast, { type ToastMessage, type ToastType } from './Toast'
 import AccountMenu from './AccountMenu'
+import { AppVersion } from './AppVersion'
 import { HAS_FILING, FilingRecords } from './FilingRecords'
 import { useAuth } from '../hooks/useAuth'
 
@@ -546,6 +547,8 @@ export default function Dashboard() {
                 <FilingRecords />
               </>
             )}
+            <span className="mx-2 text-t5">·</span>
+            <AppVersion />
           </p>
         </footer>
       </main>

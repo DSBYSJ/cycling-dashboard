@@ -1,7 +1,7 @@
 {
   "name": "cycling-dashboard-server",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "骑行评分监测看板的后端：邮箱密码登录 + 骑行数据云端存储",
   "type": "module",
   "engines": {

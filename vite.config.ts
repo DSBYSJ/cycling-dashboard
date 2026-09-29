@@ -2,9 +2,26 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+// 直接读 package.json 的版本号（项目未装 @types/node，所以不用 node:fs）
+import { version as pkgVersion } from './package.json'
+
+/**
+ * 版本号的**唯一来源**是 package.json 的 version 字段，构建时内联成 `__APP_VERSION__`。
+ *
+ * 之所以要注入而不是在代码里手写一个常量：那样会出现「package.json 升到 1.2.0、
+ * 页面上还显示 1.1.0」的漂移 —— 版本号一旦不可信，报障时提供的信息反而会误导排查。
+ *
+ * 升级方式（见 package.json 的 scripts）：
+ *   npm run bump:patch   小改动 → 1.0.0 → 1.0.1（最后一位 +1）
+ *   npm run bump:major   大版本 → 1.0.1 → 2.0.0（第一位 +1，后两位归零）
+ */
+const APP_VERSION = pkgVersion
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   // 产物用相对路径:既可部署到子目录,也是后续用 Capacitor 打包安卓 App 的前提
   base: './',
   server: {

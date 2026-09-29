@@ -184,17 +184,37 @@ export function useRideForm({ initialRecord, bikes, onSave }: Params) {
     setGpxMessage('')
     try {
       const xml = await file.text()
-      const { points, name } = parseGPX(xml)
+      const { points, name, stats } = parseGPX(xml)
       const summary = summarizeTrack(points)
       const series = speedSeriesFromTrack(points)
+
+      /**
+       * 距离与爬升优先用**设备自带的统计**（华为等厂商写在 <extensions> 里）。
+       *
+       * 自己算的两处都有已知偏差（实测一份 34,701 点的华为 GPX）：
+       *   · 距离：逐段 Haversine 累加会把 GPS 抖动也算进去 → 119.54 km，设备统计 117.32 km
+       *   · 爬升：为过滤噪声设了 1m 阈值，缓坡的累积上升被一并滤掉 → 396 m，设备统计 463 m
+       */
+      const distanceKm =
+        stats.distanceMeters != null
+          ? Math.round((stats.distanceMeters / 1000) * 100) / 100
+          : summary.distanceKm
+      const elevationGain =
+        stats.climbMeters != null ? Math.round(stats.climbMeters) : summary.elevationGain
+
       setTrack(points)
       setTrackSource('gpx')
       setSelectedCandidateId(null)
       setRouteName(name || file.name.replace(/\.gpx$/i, ''))
       void applyStartNameFromPoint(points[0]) // 起点位置由首个轨迹点反查得到
-      setDistanceKm(String(summary.distanceKm))
-      if (summary.avgGrade != null) setAvgGrade(String(summary.avgGrade))
-      setElevationGain(String(summary.elevationGain))
+      setDistanceKm(String(distanceKm))
+      // 平均坡度跟着用同一套距离/爬升重算，否则会和上面两个数字自相矛盾
+      if (distanceKm > 0) {
+        setAvgGrade(String(Math.round((elevationGain / (distanceKm * 1000)) * 10000) / 100))
+      } else if (summary.avgGrade != null) {
+        setAvgGrade(String(summary.avgGrade))
+      }
+      setElevationGain(String(elevationGain))
       setSpeedSeries(series)
       const peak = maxSpeedFromSeries(series)
       if (peak != null) setMaxSpeed(String(peak))
@@ -202,18 +222,28 @@ export function useRideForm({ initialRecord, bikes, onSave }: Params) {
       const lastTime = [...points].reverse().find((p) => p.time)?.time
       if (firstTime && lastTime && firstTime !== lastTime) {
         setRideTimes({ startISO: firstTime, endISO: lastTime })
-        const minutes = (Date.parse(lastTime) - Date.parse(firstTime)) / 60000
+        /**
+         * 时长优先用设备的**运动时长**（totalTime），而不是首尾时间戳之差。
+         *
+         * 首尾差把中间的休息、吃饭、拍照全算了进去。实测同一份记录：
+         * 首尾跨度 610 分钟，而设备统计的运动时长只有 420 分钟 ——
+         * 拿首尾差算均速，会把 17.1 km/h 算成 11.8 km/h（低了 31%）。
+         */
+        const wallMinutes = (Date.parse(lastTime) - Date.parse(firstTime)) / 60000
+        const minutes = stats.durationSeconds != null ? stats.durationSeconds / 60 : wallMinutes
         if (minutes > 1) {
           setDurationMin(String(Math.round(minutes)))
-          setAvgSpeed(String(Math.round((summary.distanceKm / (minutes / 60)) * 10) / 10))
+          setAvgSpeed(String(Math.round((distanceKm / (minutes / 60)) * 10) / 10))
         }
+        const durationNote =
+          stats.durationSeconds != null ? `，运动时长 ${Math.round(minutes)} 分钟（设备统计）` : ''
         setGpxMessage(
-          `已导入 ${file.name}:${points.length} 个轨迹点，距离 ${summary.distanceKm} km,爬升 ${summary.elevationGain} m。已识别骑行时段，获取环境数据时将按该时段提取逐小时降雨。`
+          `已导入 ${file.name}:${points.length} 个轨迹点，距离 ${distanceKm} km,爬升 ${elevationGain} m${durationNote}。已识别骑行时段，获取环境数据时将按该时段提取逐小时降雨。`
         )
       } else {
         setRideTimes(null)
         setGpxMessage(
-          `已导入 ${file.name}:${points.length} 个轨迹点，距离 ${summary.distanceKm} km,爬升 ${summary.elevationGain} m(无时间戳，不生成速度曲线)。`
+          `已导入 ${file.name}:${points.length} 个轨迹点，距离 ${distanceKm} km,爬升 ${elevationGain} m(无时间戳，不生成速度曲线)。`
         )
       }
     } catch (err) {

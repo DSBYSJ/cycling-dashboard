@@ -111,6 +111,103 @@ describe('summarizeTrack', () => {
   })
 })
 
+describe('parseGPX 的设备统计（华为等厂商写在 extensions 里）', () => {
+  const huaweiGpx = `<gpx version="1.0" creator="Health">
+  <trk><type>户外骑行</type>
+    <extensions><totalTime>25184.0</totalTime><cumulativeClimb>463.1</cumulativeClimb><totalDistance>117320.0</totalDistance></extensions>
+    <trkseg>
+      <trkpt lat="23.1200" lon="113.3200"><ele>12</ele><time>2026-09-24T00:45:51Z</time></trkpt>
+      <trkpt lat="23.1300" lon="113.3300"><ele>15</ele><time>2026-09-24T00:46:51Z</time></trkpt>
+    </trkseg>
+  </trk></gpx>`
+
+  it('解析出距离、运动时长与累计爬升', () => {
+    const { stats } = parseGPX(huaweiGpx)
+    expect(stats.distanceMeters).toBe(117320)
+    expect(stats.durationSeconds).toBe(25184)
+    expect(stats.climbMeters).toBeCloseTo(463.1, 1)
+  })
+
+  it('没有 extensions 时三项都是 null —— 上层据此回落到自己算', () => {
+    const { stats } = parseGPX(
+      '<gpx><trk><trkseg><trkpt lat="1" lon="2"/><trkpt lat="1.001" lon="2.001"/></trkseg></trk></gpx>'
+    )
+    expect(stats.distanceMeters).toBeNull()
+    expect(stats.durationSeconds).toBeNull()
+    expect(stats.climbMeters).toBeNull()
+  })
+
+  it('扩展值是 0 或非数字时同样按"没有"处理，不拿它去覆盖自己算的结果', () => {
+    const { stats } = parseGPX(
+      '<gpx><trk><extensions><totalDistance>0</totalDistance><totalTime>abc</totalTime></extensions>' +
+        '<trkseg><trkpt lat="1" lon="2"/><trkpt lat="1.001" lon="2.001"/></trkseg></trk></gpx>'
+    )
+    expect(stats.distanceMeters).toBeNull()
+    expect(stats.durationSeconds).toBeNull()
+  })
+})
+
+describe('速度去噪（中位数滤波）', () => {
+  /**
+   * 从给定纬度出发，每秒走 metersPerSecond 米，生成 count 个点。
+   * 用于构造"速度已知"的轨迹，好断言滤波有没有起到该起的作用。
+   */
+  function walkFrom(lat: number, count: number, metersPerSecond: number, startMs: number): TrackPoint[] {
+    const stepDeg = metersPerSecond / 111_320
+    return Array.from({ length: count }, (_, i) => ({
+      lat: lat + (i + 1) * stepDeg,
+      lon: 113,
+      time: new Date(startMs + (i + 1) * 1000).toISOString(),
+    }))
+  }
+
+  it('★ 孤立的 GPS 漂移不再产生假的最高速（这才是真实数据里 92 km/h 的来源）', () => {
+    const start = Date.UTC(2026, 8, 24, 0, 0, 0)
+    const normal = walkFrom(23, 10, 7, start) // 7 m/s ≈ 25 km/h
+    const lastLat = normal[normal.length - 1].lat
+    const lastTime = Date.parse(normal[normal.length - 1].time as string)
+
+    // 中间插一段 1 秒位移 26 米 —— 相当于 93.6 km/h，骑行不可能
+    const driftLat = lastLat + 26 / 111_320
+    const driftTime = lastTime + 1000
+    const drift: TrackPoint = { lat: driftLat, lon: 113, time: new Date(driftTime).toISOString() }
+    const rest = walkFrom(driftLat, 10, 7, driftTime)
+
+    const points = [{ lat: 23, lon: 113, time: new Date(start).toISOString() }, ...normal, drift, ...rest]
+    const peak = maxSpeedFromSeries(speedSeriesFromTrack(points))
+
+    expect(peak).not.toBeNull()
+    expect(peak as number).toBeLessThan(60) // 去噪前这里会是 93.6
+    expect(peak as number).toBeGreaterThan(15)
+  })
+
+  it('★ 连续多段高速是真下坡，必须保留 —— 滤波不能把真实数据一起杀掉', () => {
+    const points = walkFrom(23, 20, 16, Date.UTC(2026, 8, 24, 0, 0, 0)) // 16 m/s = 57.6 km/h
+    const peak = maxSpeedFromSeries(speedSeriesFromTrack(points))
+    expect(peak as number).toBeGreaterThan(50)
+  })
+
+  it('速度曲线与最高速用的是同一份平滑结果，不会自相矛盾', () => {
+    const points = walkFrom(23, 5, 7, Date.UTC(2026, 8, 24, 0, 0, 0))
+    const series = speedSeriesFromTrack(points)
+    const peak = maxSpeedFromSeries(series) as number
+    const curveMax = Math.max(...series.map((s) => s.speed))
+    expect(peak).toBeCloseTo(curveMax, 5)
+  })
+
+  it('速度为 0 的段（无时间戳/没动）不参与平滑，避免把真实速度拉低', () => {
+    const series = speedSeriesFromTrack([
+      pt(23.1291, 113.2644, undefined, '2026-09-15T08:00:00Z'),
+      pt(23.1291, 113.2744, undefined, '2026-09-15T08:01:00Z'),
+      pt(23.1291, 113.2744, undefined, '2026-09-15T08:02:00Z'), // 原地不动 → 速度 0
+      pt(23.1291, 113.2844, undefined, '2026-09-15T08:03:00Z'),
+    ])
+    // 中间那段 0 不该把两侧拉下来
+    expect(series[0].speed).toBeGreaterThan(60)
+    expect(series[2].speed).toBeGreaterThan(60)
+  })
+})
+
 describe('parseGPX', () => {
   const gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="test">

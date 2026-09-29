@@ -39,7 +39,7 @@ export default function OverviewPanel() {
         />
         <StatCard label="骑行记录" value={data.rides.total} hint={`近 7 天 +${data.rides.last7d}`} />
         <StatCard label="单车 / 打卡" value={`${data.bikes} / ${data.days}`} hint="单车数与打卡天数记录数" />
-        <StatCard label="待处理留言" value={data.feedback.open} hint={`邀请码 ${data.invites} 个`} />
+        <StatCard label="邀请码" value={data.invites} hint="可凭码注册（关闭注册时不生效）" />
       </div>
 
       <Panel title="服务状态" description="后端进程与存储占用">
@@ -125,6 +125,5 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const SETTING_LABEL: Record<string, string> = {
   allow_register: '开放注册',
-  feedback_enabled: '用户留言',
   invite_required: '需要邀请码',
 }

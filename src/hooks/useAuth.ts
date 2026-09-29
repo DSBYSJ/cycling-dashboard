@@ -13,8 +13,6 @@ export interface AuthContextValue {
    * 前端把入口藏起来只是体验，不是安全措施。
    */
   isAdmin: boolean
-  /** 留言功能是否已对外开放（管理员始终可用，便于站长先自己测） */
-  feedbackEnabled: boolean
   /** 登录/注册/改密码失败的提示文案 */
   error: string | null
   /** 会话失效的提示（显示在登录页顶部，登录成功即清除） */

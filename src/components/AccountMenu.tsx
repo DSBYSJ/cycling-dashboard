@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { KeyRound, LogOut, MessageSquare, ShieldCheck, User } from 'lucide-react'
+import { KeyRound, LogOut, ShieldCheck, User } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
-import FeedbackBox from './FeedbackBox'
 
 /** 与后端 auth/password.ts 的 PASSWORD_MIN_LENGTH 保持一致 */
 const PASSWORD_MIN = 6
@@ -15,14 +14,13 @@ const MSG_ERR = 'mt-3 rounded-lg border border-accent-red/30 bg-accent-red/10 px
  * 抽成独立组件，避免这些状态和 App 的业务状态混在一起。
  */
 export default function AccountMenu({ onOpenAdmin }: { onOpenAdmin?: () => void }) {
-  const { user, isAdmin, feedbackEnabled, logout, changePassword, submitting, refreshIdentity } = useAuth()
+  const { user, isAdmin, logout, changePassword, submitting, refreshIdentity } = useAuth()
   const [open, setOpen] = useState(false)
   const [changing, setChanging] = useState(false)
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirm, setConfirm] = useState('')
   const [message, setMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null)
-  const [showFeedback, setShowFeedback] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const close = useCallback(() => {
@@ -139,21 +137,6 @@ export default function AccountMenu({ onOpenAdmin }: { onOpenAdmin?: () => void 
                   站长控制台
                 </button>
               )}
-              {/* 留言入口默认关闭（未对外开放时普通用户看不到），管理员始终可见以便先测试 */}
-              {(isAdmin || feedbackEnabled) && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    close()
-                    setShowFeedback(true)
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-t2 transition hover:bg-fill"
-                >
-                  <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
-                  给站长留言
-                </button>
-              )}
               <button
                 type="button"
                 role="menuitem"
@@ -235,8 +218,6 @@ export default function AccountMenu({ onOpenAdmin }: { onOpenAdmin?: () => void 
           {message && <div className={message.type === 'ok' ? MSG_OK : MSG_ERR}>{message.text}</div>}
         </div>
       )}
-
-      {showFeedback && <FeedbackBox onClose={() => setShowFeedback(false)} />}
     </div>
   )
 }

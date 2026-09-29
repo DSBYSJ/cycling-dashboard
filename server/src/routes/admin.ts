@@ -27,7 +27,6 @@ import {
   type UserStatus,
 } from '../repos/users.ts'
 import { hashPassword } from '../auth/password.ts'
-import { countOpenFeedback, listAllFeedback, replyFeedback, setFeedbackStatus } from '../repos/feedback.ts'
 import { countInviteCodes, createInviteCode, deleteInviteCode, listInviteCodes } from '../repos/invite.ts'
 import { parsePagination, validatePassword } from '../lib/validate.ts'
 
@@ -59,7 +58,6 @@ function paramsOf(request: FastifyRequest): Record<string, unknown> {
 function settingDefaults(config: AppConfig): SettingDefaults {
   return {
     allow_register: config.allowRegister,
-    feedback_enabled: false,
     invite_required: false,
     changelog_enabled: true,
   }
@@ -72,9 +70,9 @@ function countRows(db: Database, table: 'bikes' | 'days'): number {
 
 /** 某个账号的数据量，用户详情页用 */
 function userDataCounts(db: Database, userId: number) {
-  const one = (table: 'rides' | 'bikes' | 'days' | 'feedback') =>
+  const one = (table: 'rides' | 'bikes' | 'days') =>
     (db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id = ?`).get(userId) as { n: number }).n
-  return { rides: one('rides'), bikes: one('bikes'), days: one('days'), feedback: one('feedback') }
+  return { rides: one('rides'), bikes: one('bikes'), days: one('days') }
 }
 
 /** 临时密码：去掉容易看错的 0/O/1/l/I，方便站长截图或口头转达 */
@@ -137,7 +135,6 @@ export function adminRoutes(db: Database, config: AppConfig): FastifyPluginAsync
         rides: { total: countRides(db), last7d: countRidesCreatedSince(db, Date.now() - 7 * 86_400_000) },
         bikes: countRows(db, 'bikes'),
         days: countRows(db, 'days'),
-        feedback: { open: countOpenFeedback(db) },
         invites: countInviteCodes(db),
         storage: { dbSizeKb, walSizeKb, backup: backupDirInfo(config.backupDir, config.backupKeepDays) },
         server: {
@@ -373,36 +370,6 @@ export function adminRoutes(db: Database, config: AppConfig): FastifyPluginAsync
       const removed = pruneAuditLog(db, 5000)
       audit(request, 'audit.prune', undefined, { removed })
       return { removed }
-    })
-
-    /* ============ 用户留言 ============ */
-
-    app.get('/feedback', async (request) => {
-      const q = queryOf(request)
-      const { limit, offset } = parsePagination(q, 50)
-      const raw = str(q.status, 10)
-      const status = raw === 'open' || raw === 'done' ? raw : ''
-      return listAllFeedback(db, { limit, offset, status })
-    })
-
-    app.post('/feedback/:id/reply', async (request) => {
-      const id = int(paramsOf(request).id)
-      if (id == null) throw badRequest('留言 id 不合法')
-      const reply = str(bodyOf(request).reply, 2000)
-      if (!reply) throw badRequest('请填写回复内容')
-      if (!replyFeedback(db, id, reply)) throw notFound('留言不存在')
-      audit(request, 'feedback.reply', `feedback:${id}`)
-      return { ok: true }
-    })
-
-    app.patch('/feedback/:id', async (request) => {
-      const id = int(paramsOf(request).id)
-      if (id == null) throw badRequest('留言 id 不合法')
-      const raw = str(bodyOf(request).status, 10)
-      if (raw !== 'open' && raw !== 'done') throw badRequest('状态只能是 open 或 done')
-      if (!setFeedbackStatus(db, id, raw)) throw notFound('留言不存在')
-      audit(request, 'feedback.status', `feedback:${id}`, { status: raw })
-      return { ok: true }
     })
 
     /* ============ 注册邀请码 ============ */

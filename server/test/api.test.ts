@@ -757,62 +757,6 @@ test('站长控制台:注册开关可在运行时切换（不用改 .env 重启�
   assert.equal((await register('unblocked-again@example.com')).statusCode, 201)
 })
 
-test('留言:默认不对外开放，管理员可先行测试；开启后用户只能看到自己的', async () => {
-  const normal = await newUserCookie('feedback-viewer@example.com')
-
-  // 默认关闭：普通用户提交被拒
-  const blocked = await app.inject({
-    method: 'POST',
-    url: '/api/feedback',
-    headers: { cookie: normal },
-    payload: { content: '你好' },
-  })
-  assert.equal(blocked.statusCode, 403)
-  assert.equal(blocked.json().error.code, 'feedback_disabled')
-
-  // 管理员始终可用（站长要先能把它跑通再决定对外开不开）
-  const admin = await getAdminCookie()
-  const posted = await app.inject({
-    method: 'POST',
-    url: '/api/feedback',
-    headers: { cookie: admin },
-    payload: { content: '这是一条测试留言' },
-  })
-  assert.equal(posted.statusCode, 201, posted.body)
-
-  const list = await app.inject({ method: 'GET', url: '/api/admin/feedback', headers: { cookie: admin } })
-  assert.equal(list.statusCode, 200)
-  const item = (list.json().items as { id: number; content: string }[]).find((i) => i.content === '这是一条测试留言')
-  assert.ok(item, '后台应能看到这条留言')
-
-  const reply = await app.inject({
-    method: 'POST',
-    url: `/api/admin/feedback/${item.id}/reply`,
-    headers: { cookie: admin },
-    payload: { reply: '收到，谢谢反馈' },
-  })
-  assert.equal(reply.statusCode, 200)
-
-  // 开启后普通用户可用，且只看得到自己的
-  await app.inject({
-    method: 'PATCH',
-    url: '/api/admin/settings',
-    headers: { cookie: admin },
-    payload: { key: 'feedback_enabled', value: true },
-  })
-  const nowOk = await app.inject({
-    method: 'POST',
-    url: '/api/feedback',
-    headers: { cookie: normal },
-    payload: { content: '开启后提交' },
-  })
-  assert.equal(nowOk.statusCode, 201, nowOk.body)
-
-  const mine = await app.inject({ method: 'GET', url: '/api/feedback', headers: { cookie: normal } })
-  assert.equal(mine.json().items.length, 1, '用户只看得到自己提交的')
-  assert.equal(mine.json().items[0].content, '开启后提交')
-})
-
 test('站长控制台:环境变量接口只给键名与是否配置，绝不返回值', async () => {
   const cookie = await getAdminCookie()
   const res = await app.inject({ method: 'GET', url: '/api/admin/env', headers: { cookie } })

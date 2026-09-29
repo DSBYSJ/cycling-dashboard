@@ -4,7 +4,6 @@ import {
   Database as DatabaseIcon,
   FileText,
   HardDrive,
-  Inbox,
   Settings as SettingsIcon,
   Terminal,
   Ticket,
@@ -17,11 +16,10 @@ import DataPanel from './DataPanel'
 import BackupsPanel from './BackupsPanel'
 import AuditPanel from './AuditPanel'
 import SettingsPanel from './SettingsPanel'
-import FeedbackPanel from './FeedbackPanel'
 import InvitesPanel from './InvitesPanel'
 import SystemPanel from './SystemPanel'
 
-type Section = 'overview' | 'users' | 'data' | 'backups' | 'audit' | 'feedback' | 'invites' | 'settings' | 'system'
+type Section = 'overview' | 'users' | 'data' | 'backups' | 'audit' | 'invites' | 'settings' | 'system'
 
 const SECTIONS: { id: Section; label: string; icon: typeof UsersIcon }[] = [
   { id: 'overview', label: '概览', icon: BarChart3 },
@@ -29,7 +27,6 @@ const SECTIONS: { id: Section; label: string; icon: typeof UsersIcon }[] = [
   { id: 'data', label: '数据', icon: DatabaseIcon },
   { id: 'backups', label: '备份', icon: HardDrive },
   { id: 'audit', label: '审计', icon: FileText },
-  { id: 'feedback', label: '留言', icon: Inbox },
   { id: 'invites', label: '邀请码', icon: Ticket },
   { id: 'settings', label: '设置', icon: SettingsIcon },
   { id: 'system', label: '日志', icon: Terminal },
@@ -86,7 +83,6 @@ export default function AdminTab() {
       {section === 'data' && <DataPanel />}
       {section === 'backups' && <BackupsPanel />}
       {section === 'audit' && <AuditPanel />}
-      {section === 'feedback' && <FeedbackPanel />}
       {section === 'invites' && <InvitesPanel />}
       {section === 'settings' && <SettingsPanel />}
       {section === 'system' && <SystemPanel />}

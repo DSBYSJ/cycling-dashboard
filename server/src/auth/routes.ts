@@ -31,13 +31,11 @@ function dummyHash(): Promise<string> {
  * 登录 / 注册 / 查询当前用户返回同一套信息。
  * 抽出来是为了三处字段永远一致 —— 前端只认这一个形状。
  */
-function sessionInfo(db: Database, config: AppConfig, user: UserRow) {
+function sessionInfo(config: AppConfig, user: UserRow) {
   return {
     user: toPublicUser(user),
     /** 仅用于决定要不要显示「站长控制台」入口；权限在后端判 */
     isAdmin: isAdminSession(config, { userId: user.id, email: user.email }),
-    /** 留言功能的开放状态（管理员始终可用，便于先自己测） */
-    feedbackEnabled: getBoolSetting(db, 'feedback_enabled', false),
   }
 }
 
@@ -107,7 +105,7 @@ export function authRoutes(db: Database, config: AppConfig): FastifyPluginAsync 
         const token = signSession(user.id, user.email, user.token_version, config.jwtSecret, config.sessionDays)
         setSessionCookie(reply, token, config)
         reply.code(201)
-        return sessionInfo(db, config, user)
+        return sessionInfo(config, user)
       },
     })
 
@@ -135,7 +133,7 @@ export function authRoutes(db: Database, config: AppConfig): FastifyPluginAsync 
         touchLastLogin(db, user.id)
         const token = signSession(user.id, user.email, user.token_version, config.jwtSecret, config.sessionDays)
         setSessionCookie(reply, token, config)
-        return sessionInfo(db, config, user)
+        return sessionInfo(config, user)
       },
     })
 
@@ -148,7 +146,7 @@ export function authRoutes(db: Database, config: AppConfig): FastifyPluginAsync 
     app.get('/me', { preHandler: requireAuth }, async (request) => {
       const user = findUserById(db, request.user!.userId)
       if (!user) throw unauthorized('账号不存在或已被删除')
-      return sessionInfo(db, config, user)
+      return sessionInfo(config, user)
     })
 
     app.post('/password', { preHandler: requireAuth }, async (request, reply) => {

@@ -14,7 +14,6 @@ const FILTERS = [
   { id: 'setting.', label: '系统设置' },
   { id: 'ride.', label: '记录相关' },
   { id: 'backup.', label: '备份相关' },
-  { id: 'feedback.', label: '留言相关' },
   { id: 'invite.', label: '邀请码' },
   { id: 'audit.', label: '日志维护' },
 ]

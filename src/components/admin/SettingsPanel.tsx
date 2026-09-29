@@ -7,10 +7,6 @@ const LABEL: Record<AdminSetting['key'], { title: string; desc: string }> = {
     title: '开放注册',
     desc: '关闭后任何人都无法注册新账号（已登录的用户不受影响）。以前改这一项要登服务器改配置文件并重启，现在点一下就行。',
   },
-  feedback_enabled: {
-    title: '用户留言',
-    desc: '开启后，用户能在账号菜单里给你留言（只有你能看到，用户之间互相看不到）。关闭时管理员仍可测试。',
-  },
   invite_required: {
     title: '需要邀请码',
     desc: '开启后注册必须填邀请码。适合只给朋友用的场景 —— 先在这里开启，再到「邀请码」页生成几个码发出去。',

@@ -71,7 +71,7 @@ export function touchLastLogin(db: Database, userId: number): void {
   db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(new Date().toISOString(), userId)
 }
 
-/** 删除账号。rides / bikes / days / feedback 都是 ON DELETE CASCADE，会一并清掉 */
+/** 删除账号。rides / bikes / days 都是 ON DELETE CASCADE，会一并清掉 */
 export function deleteUser(db: Database, userId: number): void {
   db.prepare('DELETE FROM users WHERE id = ?').run(userId)
 }

@@ -60,13 +60,12 @@ export interface PublicUser {
 
 /**
  * 登录态查询结果。
- * isAdmin / feedbackEnabled 只用来决定**界面显示**（要不要给管理员入口、留言入口），
+ * isAdmin 只用来决定**界面显示**（要不要给管理员入口），
  * 真正的权限一律在后端判 —— 前端藏起来不等于没权限。
  */
 export interface MeResult {
   user: PublicUser
   isAdmin: boolean
-  feedbackEnabled: boolean
 }
 
 /**
@@ -78,17 +77,6 @@ export interface AuthConfig {
   allowRegister: boolean
   inviteRequired: boolean
   changelogEnabled: boolean
-}
-
-/** 用户 → 站长的单向留言：只能看到自己提交的与站长给自己的回复 */
-export interface FeedbackItem {
-  id: number
-  userId: number
-  content: string
-  status: 'open' | 'done'
-  reply: string | null
-  repliedAt: string | null
-  createdAt: string
 }
 
 /**
@@ -240,16 +228,12 @@ export const api = {
   deleteDay: (id: string) => request<void>('DELETE', `/days/${encodeURIComponent(id)}`),
   bulkDays: (days: DayCheckIn[]) =>
     request<BulkResult>('POST', '/days/bulk', { days }, { timeoutMs: 120_000 }),
-
-  /* 用户端留言（单向，默认关闭，由站长在后台开启） */
-  listFeedback: () => request<{ items: FeedbackItem[] }>('GET', '/feedback'),
-  submitFeedback: (content: string) => request<{ feedback: FeedbackItem }>('POST', '/feedback', { content }),
 }
 
 /* ==================== 站长控制台 ==================== */
 
 export interface AdminSetting {
-  key: 'allow_register' | 'feedback_enabled' | 'invite_required' | 'changelog_enabled'
+  key: 'allow_register' | 'invite_required' | 'changelog_enabled'
   value: boolean
   /** 是否被后台改过；没改过时显示的是服务器 .env 里的值 */
   overridden: boolean
@@ -270,7 +254,7 @@ export interface AdminUser {
 export interface AdminUserDetail {
   user: AdminUser & {
     isAdmin: boolean
-    counts: { rides: number; bikes: number; days: number; feedback: number }
+    counts: { rides: number; bikes: number; days: number }
   }
   recentRides: AdminRide[]
 }
@@ -299,7 +283,6 @@ export interface AdminOverview {
   rides: { total: number; last7d: number }
   bikes: number
   days: number
-  feedback: { open: number }
   invites: number
   storage: {
     dbSizeKb: number
@@ -334,10 +317,6 @@ export interface InviteCode {
   note: string | null
   createdAt: string
   uses: { userId: number; email: string; usedAt: string }[]
-}
-
-export interface AdminFeedbackItem extends FeedbackItem {
-  userEmail: string
 }
 
 export interface LogResult {
@@ -396,13 +375,6 @@ export const adminApi = {
   audit: (params: { limit?: number; offset?: number; action?: string } = {}) =>
     request<{ items: AuditRow[]; total: number }>('GET', buildQuery('/admin/audit', params)),
   pruneAudit: () => request<{ removed: number }>('POST', '/admin/audit/prune', {}),
-
-  feedback: (params: { limit?: number; offset?: number; status?: string } = {}) =>
-    request<{ items: AdminFeedbackItem[]; total: number }>('GET', buildQuery('/admin/feedback', params)),
-  replyFeedback: (id: number, reply: string) =>
-    request<{ ok: boolean }>('POST', `/admin/feedback/${id}/reply`, { reply }),
-  setFeedbackStatus: (id: number, status: 'open' | 'done') =>
-    request<{ ok: boolean }>('PATCH', `/admin/feedback/${id}`, { status }),
 
   invites: () => request<{ items: InviteCode[] }>('GET', '/admin/invites'),
   createInvite: (payload: { code?: string; maxUses?: number; expiresAt?: string; note?: string }) =>

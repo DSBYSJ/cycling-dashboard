@@ -83,8 +83,6 @@ export const ACTION_LABEL: Record<string, string> = {
   'backup.create': '创建备份',
   'backup.delete': '删除备份',
   'audit.prune': '清理审计日志',
-  'feedback.reply': '回复留言',
-  'feedback.status': '留言状态',
   'invite.create': '新建邀请码',
   'invite.delete': '删除邀请码',
 }

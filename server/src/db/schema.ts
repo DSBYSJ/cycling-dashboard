@@ -160,4 +160,15 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 3,
+    name: 'drop-feedback',
+    sql: `
+      -- 用户留言功能已下线：只有站长一个账号时它是个自说自话的空转功能，
+      -- 留着还要维护后台面板与开关。表删除后其索引由 SQLite 一并清理。
+      -- 注意：迁移只追加不改已发布的版本 —— 即便线上库可能没有这张表，
+      -- 也要用 IF EXISTS，保证不同环境的库都能跑到这条。
+      DROP TABLE IF EXISTS feedback;
+    `,
+  },
 ]

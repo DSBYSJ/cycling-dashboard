@@ -18,7 +18,6 @@ function describeError(err: unknown): string {
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [feedbackEnabled, setFeedbackEnabled] = useState(false)
   const [status, setStatus] = useState<AuthStatus>('checking')
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -28,13 +27,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const applyIdentity = useCallback((me: MeResult) => {
     setUser(me.user)
     setIsAdmin(me.isAdmin)
-    setFeedbackEnabled(me.feedbackEnabled)
   }, [])
 
   const forgetIdentity = useCallback(() => {
     setUser(null)
     setIsAdmin(false)
-    setFeedbackEnabled(false)
   }, [])
 
   // 启动时确认登录态：Cookie 里若还有有效会话，刷新页面应该直接进主界面
@@ -163,7 +160,6 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       user,
       status,
       isAdmin,
-      feedbackEnabled,
       error,
       notice,
       submitting,
@@ -180,7 +176,6 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       user,
       status,
       isAdmin,
-      feedbackEnabled,
       error,
       notice,
       submitting,

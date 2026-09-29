@@ -22,6 +22,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.2',
+    date: '2026-09-29',
+    groups: [
+      {
+        title: '精简',
+        items: [
+          '移除「给站长留言」功能：站长本人就是唯一账号时，它只是个自说自话的空转功能；连带移除后台的留言面板、开关与数据表',
+          '移除「路线评价」里的评论占位：那是个人备案下不能提供的功能，改为如实说明「不含评论等社区功能」',
+        ],
+      },
+      {
+        title: '文档',
+        items: ['新增项目总览说明；修正 README 与实际不符的内容（失效链接、过时的测试数、缺失的新功能）'],
+      },
+    ],
+  },
+  {
     version: '1.0.1',
     date: '2026-09-29',
     groups: [

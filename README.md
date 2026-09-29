@@ -1,5 +1,8 @@
 # 🚴 骑行评分监测看板
 
+> **项目总览(定位 / 功能 / 技术栈 / 关键设计 / 合规)见 [`docs/项目说明.md`](docs/项目说明.md)。**
+> 本文侧重功能细节与工程约定。
+
 个人骑行记录与评分可视化看板。记录(手动录入 / GPX 导入 / 地图绘制 / 手表同步)骑行数据后,自动采集当日**天气与空气质量**,结合**路线海拔与坡度**计算本次骑行的综合评分,并以手写 SVG 图表 + 高德地图轨迹的形式展示。
 
 **需要登录**:账号系统与数据存储在后端(`server/`,Node + Fastify + SQLite),数据存在你自己的服务器上,换设备登录即可看到;浏览器里保留一份只读缓存,断网时仍能翻看历史记录。
@@ -10,7 +13,7 @@
 
 | 分页 | 内容 |
 |---|---|
-| **记录** | 记录一次骑行(卡片顶部内嵌「今天骑了吗」快速打卡,下方为详细录入表单) + 本次评分 + 路线评价 + 近 30 天概览 + 保养提醒 |
+| **记录** | 记录一次骑行(卡片顶部内嵌「今天骑了吗」快速打卡,下方为详细录入表单) + 本次评分 + **AI 教练复盘**(仅管理员) + 路线评价 + 近 30 天概览 + 保养提醒 |
 | **看板** | 评分趋势 + 速度曲线 + 海拔曲线 + 骑行轨迹地图 + 评分雷达 + 历史记录(筛选、编辑、重命名、导出 JSON / CSV) |
 | **单车与轮胎** | 单车与外胎寿命管理(标签上带记录条数角标,有外胎超期/接近寿命时显示红/黄点) |
 | **站长**(仅管理员) | 站点概览与运行开关、账号管理、数据浏览与统计、备份、审计日志、用户留言、邀请码、后台日志 |
@@ -121,6 +124,16 @@
 - **离线可用**:服务器连不上时自动切到本地缓存的只读副本(顶栏显示「离线・只读」),能翻看已同步的历史记录与轨迹;此状态下界面会明确告知「改动无法保存」,而不是让你白改一遍
 - **PWA**:manifest 与 Service Worker 均已启用(`vite-plugin-pwa`),可安装到手机桌面并**离线打开**;包含 maskable 图标,安卓自适应图标裁切后不会丢边缘。生产构建后用 `npm run preview` 验证(Service Worker 需要 HTTPS 或 localhost)
 - **多标签页**:同一浏览器开多个页面时,任一页写入会通知其它页重新拉取,不会出现「A 页看不到 B 页刚存的记录」
+- **未来 7 天出行建议**(看板页顶部):拉未来 7 天逐小时预报与空气质量,用**与历史记录同一套评分算法**挑出每天最值得出门的时段
+  - 地点取「最近一次带坐标的骑行记录」,不做浏览器定位(零授权打扰);空气质量取不到时只降级、不整块报错
+  - 聚合口径按评分语义:温度 / 湿度 / AQI 取窗口均值、降水取总和、风力取窗口内最大值
+- **AI 教练复盘**(仅管理员,DeepSeek):针对某一次骑行生成结构化复盘 —— 摘要、做得好的、可以改进(含具体做法)、下次目标、风险提示
+  - 卡片里有「复盘对象」下拉,可直接切换要复盘哪次骑行(切换会连带换掉上方的「本次评分」)
+  - **不自动生成**(用户点了才调用),同一份数据重复查看不会重复调用模型
+  - 模型不可用时回落到规则引擎建议,并明确标注**不是 AI 生成的**
+  - ⚠️ 只对管理员开放:个人主体 ICP 备案不能面向公众提供生成式 AI 服务(依据见 `docs/用户聊天功能合规评估.md`)
+- **版本号与更新日志**:页脚显示当前版本,点击查看每个版本的更新内容;站长可在「设置」里开关这一入口
+  - 版本号单一来源是 `package.json`,构建时注入;升位用 `npm run bump:patch` / `bump:major`
 
 ## 使用说明:分页与链接
 
@@ -222,7 +235,7 @@ VITE_AMAP_SECURITY_CODE=你的安全密钥jscode
 - Tailwind CSS 3(配色全部走语义化 token,昼夜两套值由 CSS 变量提供)
 - 高德地图 JS API 2.0(`@amap/amap-jsapi-loader`)
 - 手写 SVG 图表(折线 / 面积 / 雷达 / 柱状,未使用图表库)
-- 后端:Node 22 + Fastify + `node:sqlite` + httpOnly Cookie(见 `server/README.md`)
+- 后端:Node 22 + Fastify + `node:sqlite` + httpOnly Cookie(设计与部署见 `docs/项目说明.md`).md`)
 - IndexedDB(仅作为离线只读缓存,按账号分库)
 - `vite-plugin-pwa`(Workbox 生成 Service Worker 与 manifest)
 - Vitest + jsdom(单元测试)
@@ -241,7 +254,7 @@ VITE_AMAP_SECURITY_CODE=你的安全密钥jscode
 - **按需加载**:三个分页用 `React.lazy` 拆包,「看板」页(高德地图 + 四个图表)只在切换过去时才下载;`react` / `lucide-react` / `@amap` 单独分包以便长期缓存。
 - **高德 SDK 的类型边界**:官方没有 TS 类型,项目在 `src/types/amap.ts` 手写了「实际用到的子集」(地图、覆盖物、四个服务类与回调结果结构)。因此**全项目没有任何 `any`**,SDK 字段名写错或返回结构变化在编译期就会暴露;新增 API 时请在那里补声明,不要退回 `any`。坐标形态差异(数组 / 对象 / LngLat 实例)由 `src/utils/amapCoords.ts` 统一归一。
 - **表单结构**:`RideForm` 只做编排,状态与业务逻辑在 `src/components/ride-form/useRideForm.ts`,分区组件(基本信息 / 路线 / 路线属性 / 环境 / 保存)各自独立,便于单独调整;每个分区用 `Pick<RideFormModel, …>` 显式声明它依赖的字段。
-- **测试**:8 个文件、126 个用例,覆盖评分规则(逐条对应上面的评分模型表格)、GPX 解析与距离/爬升计算、外胎寿命阈值、备份导入校验、图表辅助函数、高德坐标归一、API 客户端的错误映射与 Cookie 携带、批量上传切块。**调整评分权重或接口约定后请先跑 `npm test`。**
+- **测试**:18 个文件、**283 个用例**(前端 181 + 后端 102),覆盖评分规则(逐条对应上面的评分模型表格)、GPX 解析与距离/爬升计算、外胎寿命阈值、备份导入校验、图表辅助函数、高德坐标归一、API 客户端的错误映射与 Cookie 携带、批量上传切块、轨迹抽稀、更新日志数据。**调整评分权重或接口约定后请先跑 `npm test`**(后端另有 `cd server && npm test`,以及 AI 输出评测 `npm run eval`)。**
 
 ## 项目结构
 
@@ -249,16 +262,24 @@ VITE_AMAP_SECURITY_CODE=你的安全密钥jscode
 cycling-dashboard/
 ├── index.html
 ├── public/               # 图标(含 maskable 与 apple-touch-icon);manifest 由插件生成
-├── server/               # 后端:登录 + 云端数据(见 server/README.md)
-│   ├── src/              # config / db / auth / repos / routes / lib
-│   ├── scripts/          # install.sh(一键安装) / backup.mjs(一致性备份)
+├── docs/                 # 项目说明 / 技术架构与设计取舍 / AI 评测报告 / 合规评估
+├── server/               # 后端:登录 + 云端数据
+│   ├── src/
+│   │   ├── config / db / auth / repos / routes / lib
+│   │   └── ai/           # AI 教练:prompt(上下文压缩) / review(结构化校验)
+│   │                     # deepseek(客户端) / metrics(可观测) / coach(编排)
+│   ├── eval/             # AI 输出质量评测集(npm run eval,不达标退出码 1)
 │   └── test/             # 单元 + 集成测试(真实 SQLite + 真实 HTTP)
+│   # 注:部署脚本(install.sh / backup.mjs)只留在本机与服务器,不进仓库
 ├── src/
 │   ├── App.tsx           # 只做登录态分流:过渡页 / 登录页 / 主界面
 │   ├── api/client.ts     # 接口客户端:统一错误码、区分网络错误、按需超时
 │   ├── types.ts          # 数据类型(前后端共用,server 直接引用本文件)
 │   ├── types/amap.ts     # 高德 SDK 的最小类型声明(全项目无 any 的依据)
+│   ├── version.ts        # 版本号(构建时注入,唯一来源是 package.json)
 │   ├── data/cities.ts    # 城市编码与坐标表
+│   ├── data/about.ts     # 「关于本站」公开页内容
+│   ├── data/changelog.ts # 更新日志(升版本号要同步加一条)
 │   ├── components/
 │   │   ├── Dashboard.tsx # 主界面:顶栏 + 分页路由(hash 同步)+ 业务编排
 │   │   ├── AccountMenu.tsx   # 账号菜单(改密码 / 退出)
@@ -266,18 +287,25 @@ cycling-dashboard/
 │   │   ├── RideCheckIn / RideForm / RoutePlanner / ManageBikes / MapView
 │   │   ├── HuaweiSyncButton / Toast / ErrorBoundary
 │   │   ├── ScoreCard / ScoreRadar / SpeedChart / ElevationChart
+│   │   ├── TripAdvice                    # 未来 7 天出行建议
+│   │   ├── CoachReviewCard / RidePicker  # AI 复盘卡片与「复盘对象」选择器
+│   │   ├── ChangelogDialog / AppVersion / FilingRecords  # 更新日志 / 版本号 / 备案号
 │   │   ├── HistoryList / TrendChart / DataBackup
-│   │   ├── tabs/         # RecordTab / DashboardTab / BikesTab(按需加载)
+│   │   ├── tabs/         # RecordTab / DashboardTab / BikesTab / AdminTab(按需加载)
 │   │   └── ride-form/    # useRideForm(状态与业务逻辑)
 │   │                     # BasicSection / RouteSection / RouteAttrSection / EnvSection / SubmitSection
 │   ├── hooks/
 │   │   ├── useAuth.ts            # 登录态 Context 与消费方
 │   │   ├── useCloudData.ts       # 数据层:云端为主 + 本地只读缓存
 │   │   ├── useLegacyMigration.ts # 首次登录把浏览器里的旧数据搬到云端
+│   │   ├── useForecast.ts        # 未来 7 天预报(出行建议)
+│   │   ├── useCoachReview.ts     # AI 复盘(不自动生成、换记录清空结果)
+│   │   ├── useChangelogEnabled.ts # 更新日志开关(拿不到时按开启显示)
 │   │   ├── useAmap / useRoutePlanning / useHuaweiSync
 │   │   ├── useTabRoute / useWeather / useElevation / useTheme
 │   └── utils/            # scoring(评分算法) / gpxParser / chartHelpers / tire(外胎寿命)
 │                         # backup(备份校验) / chunks(批量上传切块)
+│                         # trackSimplify(轨迹与速度序列抽稀) / rideOption(记录选项文案)
 │                         # localCache(按账号分库的离线缓存) / amapCoords(坐标归一)
 │                         # themeColors(运行时取主题色) / huaweiMock(手表 Mock 层)
 │                         # __tests__/ 单元测试

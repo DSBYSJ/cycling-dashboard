@@ -1,5 +1,5 @@
 import process from 'node:process'
-import { loadConfig, warnIfNoAdmin } from './config.ts'
+import { loadConfig, warnAboutAi, warnIfNoAdmin } from './config.ts'
 import { openDatabase } from './db/index.ts'
 import { getBoolSetting } from './lib/settings.ts'
 import { buildApp } from './app.ts'
@@ -11,6 +11,7 @@ import { buildApp } from './app.ts'
 
 const config = loadConfig()
 warnIfNoAdmin(config)
+warnAboutAi(config)
 const db = await openDatabase(config.databasePath)
 const app = await buildApp(config, db)
 
@@ -35,6 +36,12 @@ try {
   if (!config.logFile) {
     app.log.info('未配置 LOG_FILE，站长控制台的「日志」页将不可用（可到宝塔面板查看）')
   }
+  // AI 是否可用只说结论，不输出模型以外的任何配置细节
+  app.log.info(
+    config.aiCoachEnabled && config.deepseekApiKey
+      ? `AI 骑行教练：已启用（${config.deepseekModel}）`
+      : 'AI 骑行教练：未启用'
+  )
 } catch (err) {
   app.log.error(err, '启动失败')
   db.close()

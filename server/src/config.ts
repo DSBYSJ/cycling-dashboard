@@ -32,6 +32,22 @@ export interface AppConfig {
   backupKeepDays: number
   /** 后端日志文件路径;未配置时后台不提供日志查看(可去宝塔面板看) */
   logFile: string | null
+  /**
+   * DeepSeek API Key。放在服务端是硬性要求 ——
+   * 前端拿到 Key 等于公开(打包产物里能在浏览器里翻出来)，
+   * 所以模型调用一律由后端代理。
+   */
+  deepseekApiKey: string | null
+  deepseekModel: string
+  deepseekBaseUrl: string
+  /** 单次请求超时(毫秒)。比默认值短一些:复盘请求让用户等着，不如早点降级到规则引擎 */
+  deepseekTimeoutMs: number
+  /**
+   * AI 骑行教练总开关。即使配了 Key 也可以临时关掉。
+   * 另外注意:该功能在路由层**只对管理员开放** —— 个人备案主体不能面向公众提供
+   * 生成式 AI 服务，把限制写在代码里比写在文档里可靠。
+   */
+  aiCoachEnabled: boolean
 }
 
 const PLACEHOLDER_SECRET = '请用-npm-run-gen-secret-生成一个随机值替换这里'
@@ -129,6 +145,31 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, rootDir = proce
     backupDir,
     backupKeepDays: Math.max(1, num(env.BACKUP_KEEP_DAYS, 30)),
     logFile: env.LOG_FILE?.trim() || null,
+    deepseekApiKey: env.DEEPSEEK_API_KEY?.trim() || null,
+    deepseekModel: env.DEEPSEEK_MODEL?.trim() || 'deepseek-chat',
+    deepseekBaseUrl: env.DEEPSEEK_BASE_URL?.trim() || 'https://api.deepseek.com',
+    deepseekTimeoutMs: Math.max(1_000, num(env.DEEPSEEK_TIMEOUT_MS, 20_000)),
+    aiCoachEnabled: bool(env.AI_COACH_ENABLED, true),
+  }
+}
+
+/**
+ * AI 配置自检。三种状态要能一眼分清，否则线上"AI 不能用"会很难查：
+ *   · 没配 Key        → 功能静默不可用（这是允许的，其它功能不受影响）
+ *   · 配了 Key 但关了开关 → 明确告知，避免以为配置没生效
+ *   · 都正常          → 提示一次，确认接通
+ */
+export function warnAboutAi(config: AppConfig): void {
+  if (!config.deepseekApiKey && config.aiCoachEnabled) {
+    console.warn('[配置] 未配置 DEEPSEEK_API_KEY，AI 骑行教练不可用（其它功能不受影响）')
+    return
+  }
+  if (config.deepseekApiKey && !config.aiCoachEnabled) {
+    console.warn('[配置] 已配置 DEEPSEEK_API_KEY 但 AI_COACH_ENABLED=false，AI 骑行教练处于关闭状态')
+    return
+  }
+  if (config.deepseekApiKey && config.aiCoachEnabled) {
+    console.info(`[配置] AI 骑行教练已启用，模型 ${config.deepseekModel}`)
   }
 }
 

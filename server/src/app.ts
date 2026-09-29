@@ -13,6 +13,7 @@ import { bikeRoutes } from './routes/bikes.ts'
 import { dayRoutes } from './routes/days.ts'
 import { adminRoutes } from './routes/admin.ts'
 import { feedbackRoutes } from './routes/feedback.ts'
+import { aiRoutes } from './routes/ai.ts'
 import { listBikes } from './repos/bikes.ts'
 import { listDays } from './repos/days.ts'
 import { listRides } from './repos/rides.ts'
@@ -26,6 +27,7 @@ import { listRides } from './repos/rides.ts'
  *   /api/bikes/*    单车
  *   /api/days/*     每日打卡
  *   /api/feedback/* 用户 → 站长的单向留言(默认关闭，可在后台开启)
+ *   /api/ai/*       AI 骑行复盘(仅站长本人可用，且需配置 DEEPSEEK_API_KEY)
  *   /api/admin/*    站长控制台(整块都要求管理员权限)
  * 另有 /api/health(探活) 与 /api/bootstrap(首屏一次性拉取)。
  */
@@ -81,6 +83,7 @@ export async function buildApp(config: AppConfig, db: Database): Promise<Fastify
   await app.register(bikeRoutes(db, config), { prefix: '/api/bikes' })
   await app.register(dayRoutes(db, config), { prefix: '/api/days' })
   await app.register(feedbackRoutes(db, config), { prefix: '/api/feedback' })
+  await app.register(aiRoutes(db, config), { prefix: '/api/ai' })
   await app.register(adminRoutes(db, config), { prefix: '/api/admin' })
 
   return app

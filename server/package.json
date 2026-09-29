@@ -12,6 +12,7 @@
     "start": "node --disable-warning=ExperimentalWarning --experimental-strip-types src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --disable-warning=ExperimentalWarning --test --experimental-strip-types test/*.test.ts",
+    "eval": "node --disable-warning=ExperimentalWarning --experimental-strip-types eval/run.ts",
     "gen-secret": "node -e \"console.log(require('node:crypto').randomBytes(48).toString('base64url'))\""
   },
   "dependencies": {

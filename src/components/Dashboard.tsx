@@ -6,6 +6,7 @@ import { useLegacyMigration } from '../hooks/useLegacyMigration'
 import { useTheme } from '../hooks/useTheme'
 import { useTabRoute, type TabId } from '../hooks/useTabRoute'
 import { withTireStatus } from '../utils/tire'
+import { describeSimplification, simplifyTrack } from '../utils/trackSimplify'
 import type { ImportSummary } from '../utils/backup'
 import Toast, { type ToastMessage, type ToastType } from './Toast'
 import AccountMenu from './AccountMenu'
@@ -224,12 +225,25 @@ export default function Dashboard() {
 
   const handleSave = useCallback(
     async (record: RideRecord) => {
+      /**
+       * 保存前先把轨迹抽稀到后端上限（2 万点）以内。
+       *
+       * 不做这一步，长距离骑行或手机直录会直接撞上服务端校验，
+       * 用户只看到「保存失败：轨迹点过多」—— 一次辛苦骑下来的数据全丢。
+       * 而多出来的那些点对显示毫无意义：屏幕就这么宽，相邻点早就落进同一个像素了。
+       *
+       * 刻意**不静默处理**：精简了就明确告诉用户精简了多少（见下面的提示）。
+       */
+      const simplified = simplifyTrack(record.track)
+      const next = simplified.changed ? { ...record, track: simplified.points } : record
+
       // 新建记录没有编号时自动分配(1、2、3…),之后可在历史列表里重命名
-      await save(record.label ? record : { ...record, label: nextRideLabel(rides) })
+      await save(next.label ? next : { ...next, label: nextRideLabel(rides) })
+      if (simplified.changed) showToast('info', describeSimplification(simplified))
       setSelectedId(record.id)
       setEditing(null)
     },
-    [rides, save]
+    [rides, save, showToast]
   )
 
   /** 在历史列表里重命名路线编号 */

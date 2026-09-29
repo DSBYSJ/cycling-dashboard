@@ -250,7 +250,7 @@ export function adminRoutes(db: Database, config: AppConfig): FastifyPluginAsync
         throw badRequest(`请输入完整账号「${user.email}」以确认删除`)
       }
 
-      deleteUser(db, id) // rides / bikes / days / feedback 由外键级联删除
+      deleteUser(db, id) // rides / bikes / days 由外键级联删除
       audit(request, 'user.delete', `user:${id}`, { email: user.email })
       return { ok: true, deletedUserId: id }
     })

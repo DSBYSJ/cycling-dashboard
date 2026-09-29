@@ -217,8 +217,22 @@ test('GET /auth/config：未登录也能拿到注册开关（登录页据此显�
   const body = res.json()
   assert.equal(typeof body.allowRegister, 'boolean')
   assert.equal(typeof body.inviteRequired, 'boolean')
-  // 公开接口：只给两个布尔值，不能夹带任何用户信息
+  assert.equal(typeof body.changelogEnabled, 'boolean')
+  // 公开接口：只给几个布尔值，不能夹带任何用户信息
   assert.equal(body.user, undefined)
+})
+
+test('GET /auth/config：changelogEnabled 默认开启，站长关闭后如实反映', async () => {
+  const before = await app.inject({ method: 'GET', url: '/api/auth/config' })
+  assert.equal(before.json().changelogEnabled, true)
+
+  setBoolSetting(db, 'changelog_enabled', false)
+  try {
+    const off = await app.inject({ method: 'GET', url: '/api/auth/config' })
+    assert.equal(off.json().changelogEnabled, false)
+  } finally {
+    setBoolSetting(db, 'changelog_enabled', true)
+  }
 })
 
 test('关闭注册后 config 如实反映，且注册接口确实被拒', async () => {

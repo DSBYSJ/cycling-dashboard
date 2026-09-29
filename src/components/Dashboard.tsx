@@ -505,6 +505,7 @@ export default function Dashboard() {
               onCheckIn={handleCheckIn}
               onClearToday={handleClearToday}
               onManageBikes={manageBikes}
+              onSelectRide={handleSelect}
             />
           )}
 

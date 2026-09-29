@@ -9,7 +9,7 @@ import type { Database } from '../db/index.ts'
  *
  * 键名用白名单收窄，避免前端传任意 key 把这张表当草稿纸用。
  */
-export const SETTING_KEYS = ['allow_register', 'feedback_enabled', 'invite_required'] as const
+export const SETTING_KEYS = ['allow_register', 'feedback_enabled', 'invite_required', 'changelog_enabled'] as const
 export type SettingKey = (typeof SETTING_KEYS)[number]
 
 function isSettingKey(value: string): value is SettingKey {

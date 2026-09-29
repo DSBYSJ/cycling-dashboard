@@ -2,6 +2,7 @@ import { AlertTriangle, Bot, Loader2, RefreshCw, Target } from 'lucide-react'
 import type { RideRecord } from '../types'
 import { useAuth } from '../hooks/useAuth'
 import { useCoachReview } from '../hooks/useCoachReview'
+import RidePicker from './RidePicker'
 
 /**
  * AI 教练复盘卡片。
@@ -16,7 +17,18 @@ import { useCoachReview } from '../hooks/useCoachReview'
  *    冒充 AI 比没有 AI 更糟 —— 用户会以为"AI 就这水平"，实际是企业/服务出了问题。
  * 2. **不做导出与分享**：一份可对外传播的 AI 生成内容，性质上更接近"向公众提供 AI 服务"。
  */
-export default function CoachReviewCard({ record }: { record: RideRecord }) {
+
+interface Props {
+  record: RideRecord
+  /**
+   * 可切换的记录列表（传全部记录）。
+   * 历史列表在「看板」页，而这张卡片在「记录」页 —— 没有它就得来回切页才能换一条复盘。
+   */
+  rides?: RideRecord[]
+  onSelectRide?: (id: string) => void
+}
+
+export default function CoachReviewCard({ record, rides, onSelectRide }: Props) {
   const { isAdmin } = useAuth()
   // 非管理员传 null：hook 直接进入 unavailable，不会发出任何请求
   const { phase, result, error, generate } = useCoachReview(isAdmin ? record.id : null)
@@ -53,6 +65,17 @@ export default function CoachReviewCard({ record }: { record: RideRecord }) {
           </button>
         )}
       </div>
+
+      {/*
+        换个记录复盘：历史列表在「看板」页，而这张卡片在「记录」页 ——
+        没有它就得「切过去点一下、再切回来」。切换后上方的「本次评分」也会跟着变
+        （两者共用同一个 selected），所以标签写「复盘对象」，如实说明它会换掉整页的对象。
+      */}
+      {rides && onSelectRide && (
+        <div className="mb-4">
+          <RidePicker rides={rides} selectedId={record.id} onSelect={onSelectRide} label="复盘对象" />
+        </div>
+      )}
 
       {phase === 'idle' && (
         <div className="space-y-3">

@@ -54,6 +54,7 @@ export function authRoutes(db: Database, config: AppConfig): FastifyPluginAsync 
     app.get('/config', async () => ({
       allowRegister: getBoolSetting(db, 'allow_register', config.allowRegister),
       inviteRequired: getBoolSetting(db, 'invite_required', false),
+      changelogEnabled: getBoolSetting(db, 'changelog_enabled', true),
     }))
 
     app.post('/register', {

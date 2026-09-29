@@ -57,7 +57,12 @@ function paramsOf(request: FastifyRequest): Record<string, unknown> {
 
 /** 运行时设置的默认值：注册开关回落到 .env，其余默认关 */
 function settingDefaults(config: AppConfig): SettingDefaults {
-  return { allow_register: config.allowRegister, feedback_enabled: false, invite_required: false }
+  return {
+    allow_register: config.allowRegister,
+    feedback_enabled: false,
+    invite_required: false,
+    changelog_enabled: true,
+  }
 }
 
 function countRows(db: Database, table: 'bikes' | 'days'): number {

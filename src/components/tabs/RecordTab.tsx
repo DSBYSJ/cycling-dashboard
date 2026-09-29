@@ -24,6 +24,8 @@ interface Props {
   onCheckIn: (input: { rode: boolean; bikeId?: string; distanceKm?: number }) => Promise<string | null>
   onClearToday: () => Promise<void>
   onManageBikes: () => void
+  /** 切换当前记录；AI 复盘卡片里可直接换一条，不必绕去「看板」页的历史列表 */
+  onSelectRide: (id: string) => void
 }
 
 /** 「记录」分页:今日打卡(内嵌于录入卡片顶部)+ 详细录入 + 本次评分 + 路线评价 + 概览与保养提醒 */
@@ -40,6 +42,7 @@ export default function RecordTab({
   onCheckIn,
   onClearToday,
   onManageBikes,
+  onSelectRide,
 }: Props) {
   return (
     <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-12">
@@ -115,7 +118,7 @@ export default function RecordTab({
           AI 教练复盘。权限与可用性由组件内部判断：
           非管理员账号、或后端未配置 API Key 时，整块不渲染（连按钮都不出现）。
         */}
-        {selected && <CoachReviewCard record={selected} />}
+        {selected && <CoachReviewCard record={selected} rides={rides} onSelectRide={onSelectRide} />}
 
         {/* 路线评价:自己在该路线上的历史统计 + 他人评价(预留) */}
         <RouteReviews routeName={selected?.routeName} rides={rides} />

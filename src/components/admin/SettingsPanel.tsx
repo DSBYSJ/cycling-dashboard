@@ -15,6 +15,10 @@ const LABEL: Record<AdminSetting['key'], { title: string; desc: string }> = {
     title: '需要邀请码',
     desc: '开启后注册必须填邀请码。适合只给朋友用的场景 —— 先在这里开启，再到「邀请码」页生成几个码发出去。',
   },
+  changelog_enabled: {
+    title: '更新日志',
+    desc: '开启后，页脚版本号可点击查看每个版本的更新内容；关闭后版本号仍在，只是不再可点。',
+  },
 }
 
 const SECRET_NOTE = '出于安全，这里只显示"是否已配置"，不显示任何值。要改就登服务器改 .env。'

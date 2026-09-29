@@ -77,6 +77,7 @@ export interface MeResult {
 export interface AuthConfig {
   allowRegister: boolean
   inviteRequired: boolean
+  changelogEnabled: boolean
 }
 
 /** 用户 → 站长的单向留言：只能看到自己提交的与站长给自己的回复 */
@@ -248,7 +249,7 @@ export const api = {
 /* ==================== 站长控制台 ==================== */
 
 export interface AdminSetting {
-  key: 'allow_register' | 'feedback_enabled' | 'invite_required'
+  key: 'allow_register' | 'feedback_enabled' | 'invite_required' | 'changelog_enabled'
   value: boolean
   /** 是否被后台改过；没改过时显示的是服务器 .env 里的值 */
   overridden: boolean

@@ -73,7 +73,9 @@ export default function AboutPage() {
       <div className="scanline" aria-hidden="true" />
       <div className="reading-progress" aria-hidden="true" style={{ '--progress': `${progress * 100}%` } as CSSProperties} />
 
-      <div className="mx-auto max-w-3xl px-4 py-8">
+      {/* 内容宽度：移动端与平板保持 3xl（现有疏密正好），
+          宽屏逐级加宽（lg/xl/2xl），让内容撑起两侧、不再是"窄条居中" */}
+      <div className="mx-auto max-w-3xl px-4 py-8 lg:max-w-5xl lg:px-6 xl:max-w-6xl 2xl:max-w-7xl">
         <div className="mb-10 flex justify-end">
           <button
             type="button"
@@ -158,24 +160,37 @@ export default function AboutPage() {
         {/* ================= 关于这个项目 ================= */}
         <SectionHeading index="01" icon={Info} title="关于这个项目" />
         <section className="card" data-reveal>
-          <div className="space-y-3">
-            {SITE_INTRO.map((paragraph) => (
-              <p key={paragraph} className="text-xs leading-6 text-t3">
-                {paragraph}
-              </p>
-            ))}
+          {/* 宽屏下简介拆成两栏：左栏（是什么 / 为什么）叙述，右栏（接下来）像侧记，
+              以一条细线分隔；移动端仍是单栏堆叠，段落间距与原来完全一致 */}
+          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-10 lg:space-y-0">
+            <div className="space-y-3">
+              {SITE_INTRO.slice(0, 2).map((paragraph) => (
+                <p key={paragraph} className="text-xs leading-6 text-t3">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+            <div className="space-y-3 lg:border-l lg:border-line-soft lg:pl-10">
+              {SITE_INTRO.slice(2).map((paragraph) => (
+                <p key={paragraph} className="text-xs leading-6 text-t3">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* ================= 功能 ================= */}
         <SectionHeading index="02" icon={Route} title="功能" tone="emerald" />
-        <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-2">
           {FEATURE_GROUPS.map((group, index) => {
             const Icon = GROUP_ICONS[index] ?? Info
+            // 奇数张时最后一张横跨两列：否则左下角会留一块空位，宽屏显得没铺满
+            const isWide = FEATURE_GROUPS.length % 2 === 1 && index === FEATURE_GROUPS.length - 1
             return (
               <section
                 key={group.id}
-                className="card overflow-hidden"
+                className={`card overflow-hidden${isWide ? ' lg:col-span-2' : ''}`}
                 data-reveal
                 style={{ '--i': index } as CSSProperties}
               >
@@ -191,7 +206,8 @@ export default function AboutPage() {
                     <p className="mt-1 text-[11px] leading-5 text-t4">{group.summary}</p>
                   </div>
                 </div>
-                <ul className="mt-3 space-y-2">
+                {/* 横跨两列的那张，条目也分两栏，避免全宽一行显得空 */}
+                <ul className={`mt-3 space-y-2${isWide ? ' lg:grid lg:grid-cols-2 lg:gap-x-6 lg:gap-y-2 lg:space-y-0' : ''}`}>
                   {group.items.map((item) => (
                     <li key={item} className="flex gap-2 text-xs leading-5 text-t3">
                       <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent-sky" aria-hidden="true" />
@@ -224,7 +240,7 @@ export default function AboutPage() {
         {/* ================= 取舍 ================= */}
         <SectionHeading index="04" icon={Gauge} title="几个有意为之的取舍" tone="emerald" />
         <section className="card" data-reveal>
-          <ul className="space-y-3">
+          <ul className="grid gap-3 lg:grid-cols-2 lg:gap-x-10">
             {PRINCIPLES.map((item, index) => (
               <li key={item} className="numbered-item">
                 <span className="n">{String(index + 1).padStart(2, '0')}</span>

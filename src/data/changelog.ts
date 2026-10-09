@@ -22,6 +22,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.11',
+    date: '2026-10-10',
+    groups: [
+      {
+        title: '界面',
+        items: [
+          '「了解本站」宽屏排版优化：大屏下内容区加宽、简介与功能卡片改为多栏排布，左右两侧不再空旷单调',
+          '移动端的布局与疏密完全保持不变（所有调整仅在 1024px 以上的宽屏生效）',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.10',
     date: '2026-10-10',
     groups: [

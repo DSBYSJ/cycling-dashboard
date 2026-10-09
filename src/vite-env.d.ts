@@ -6,6 +6,21 @@
  */
 declare const __APP_VERSION__: string
 
+/**
+ * 构建时统计出的项目规模（「关于本站」的数据看板用）。
+ * 读取统一走 `src/stats.ts`（同样有兜底）。
+ */
+declare const __PROJECT_STATS__: {
+  appFiles: number
+  appLines: number
+  serverFiles: number
+  serverLines: number
+  testFiles: number
+  testCases: number
+  frontendDeps: number
+  backendDeps: number
+}
+
 interface ImportMetaEnv {
   /**
    * 后端地址。同源部署时留空（前端直接请求 /api/...，由 Nginx 反代）；

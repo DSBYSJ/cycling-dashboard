@@ -1,5 +1,21 @@
-import { ArrowRight, Bike, Database, Gauge, Info, Moon, Route, ShieldCheck, SlidersHorizontal, Sun } from 'lucide-react'
+import { useCallback, useState, type CSSProperties } from 'react'
+import {
+  ArrowRight,
+  Bike,
+  Database,
+  Gauge,
+  Info,
+  Moon,
+  Route,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sun,
+} from 'lucide-react'
 import { useTheme } from '../hooks/useTheme'
+import { useCountUp } from '../hooks/useCountUp'
+import { useReadingProgress, useRevealOnScroll } from '../hooks/useReveal'
+import { APP_VERSION } from '../version'
+import { PROJECT_STATS } from '../stats'
 import { AppVersion } from './AppVersion'
 import { HAS_FILING, FilingRecords } from './FilingRecords'
 import {
@@ -17,6 +33,12 @@ import {
  * 这是整个应用里**唯一不需要登录**的页面（见 App.tsx 的分流顺序）——
  * 目的是让别人（比如招聘方、骑友）能直接看到这个项目做了什么、用了什么技术，
  * 而不必先有一个账号。内容全部来自 `data/about.ts`，合规声明与备案号也在这里展示。
+ *
+ * 视觉上这一页比应用内页更"张扬"（渐变标题、数据看板、滚动揭示），
+ * 因为它的任务就是留下印象；但性能约束不变：
+ *  - 滚动揭示走 IntersectionObserver，不监听 scroll 做计算；
+ *  - 动效只碰 transform / opacity / background-position；
+ *  - 数据看板的数字在构建时统计（见 vite.config.ts），不在页面上手写。
  */
 
 /** 与 FEATURE_GROUPS 的顺序一一对应；多一个少一个都不会崩（取不到时回落到 Info） */
@@ -27,11 +49,22 @@ const APP_ENTRY = '#/record'
 
 export default function AboutPage() {
   const { theme, toggle: toggleTheme } = useTheme()
+  const [progress, setProgress] = useState(0)
+
+  useRevealOnScroll()
+  useReadingProgress(
+    useCallback((ratio: number) => {
+      setProgress(ratio)
+    }, [])
+  )
 
   return (
     <div className="min-h-full">
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <div className="mb-6 flex justify-end">
+      {/* 阅读进度：一条随滚动前进的渐变细线 */}
+      <div className="reading-progress" aria-hidden="true" style={{ '--progress': `${progress * 100}%` } as CSSProperties} />
+
+      <div className="mx-auto max-w-3xl px-4 py-8">
+        <div className="mb-10 flex justify-end">
           <button
             type="button"
             onClick={toggleTheme}
@@ -48,22 +81,56 @@ export default function AboutPage() {
           </button>
         </div>
 
+        {/* ================= Hero ================= */}
         <header className="text-center">
-          <Bike className="mx-auto h-8 w-8 text-accent-sky-text" aria-hidden="true" />
-          <h1 className="mt-2 text-lg font-bold tracking-wide text-t1">骑行评分监测看板</h1>
-          <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-t4">{SITE_TAGLINE}</p>
-          <a href={APP_ENTRY} className="btn-primary mt-5">
-            进入应用
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </a>
-          <p className="mt-2 text-[11px] text-t5">需要账号登录后才能使用</p>
+          <div data-reveal>
+            <span className="hero-badge">已上线运行 · 全栈个人项目</span>
+          </div>
+
+          <Bike className="mx-auto mt-5 h-10 w-10 text-accent-sky-text" aria-hidden="true" data-reveal />
+          <h1
+            className="hero-gradient-text mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-4xl"
+            data-reveal
+            style={{ '--i': 1 } as CSSProperties}
+          >
+            骑行评分监测看板
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-xs leading-6 text-t4" data-reveal style={{ '--i': 2 } as CSSProperties}>
+            {SITE_TAGLINE}
+          </p>
+
+          <div className="mt-6" data-reveal style={{ '--i': 3 } as CSSProperties}>
+            <a href={APP_ENTRY} className="btn-primary">
+              进入应用
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </a>
+            <p className="mt-2 text-[11px] text-t5">需要账号登录后才能使用</p>
+          </div>
+
+          {/* 数据看板：数字在构建时统计（vite.config.ts），不是手写的宣传语 */}
+          {PROJECT_STATS && (
+            <div className="mt-9 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatTile
+                value={PROJECT_STATS.appLines + PROJECT_STATS.serverLines}
+                unit="行"
+                label="应用代码"
+                index={0}
+              />
+              <StatTile value={PROJECT_STATS.testCases} unit="例" label="自动化测试" index={1} />
+              <StatTile
+                value={PROJECT_STATS.frontendDeps + PROJECT_STATS.backendDeps}
+                unit="个"
+                label="运行时依赖"
+                index={2}
+              />
+              <StatTile value={APP_VERSION} label="当前版本" index={3} />
+            </div>
+          )}
         </header>
 
-        <section className="card mt-8">
-          <h2 className="card-title">
-            <Info className="h-4 w-4 text-accent-sky" aria-hidden="true" />
-            关于这个项目
-          </h2>
+        {/* ================= 关于这个项目 ================= */}
+        <SectionHeading index="01" icon={Info} title="关于这个项目" />
+        <section className="card" data-reveal>
           <div className="space-y-3">
             {SITE_INTRO.map((paragraph) => (
               <p key={paragraph} className="text-xs leading-6 text-t3">
@@ -73,20 +140,30 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <h2 className="mb-4 mt-10 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">
-          <Route className="h-4 w-4 text-accent-emerald" aria-hidden="true" />
-          功能
-        </h2>
+        {/* ================= 功能 ================= */}
+        <SectionHeading index="02" icon={Route} title="功能" tone="emerald" />
         <div className="space-y-4">
           {FEATURE_GROUPS.map((group, index) => {
             const Icon = GROUP_ICONS[index] ?? Info
             return (
-              <section className="card" key={group.id}>
-                <h3 className="card-title mb-0">
-                  <Icon className="h-4 w-4 text-accent-sky" aria-hidden="true" />
-                  {group.title}
-                </h3>
-                <p className="mt-1 text-[11px] leading-5 text-t4">{group.summary}</p>
+              <section
+                key={group.id}
+                className="card overflow-hidden"
+                data-reveal
+                style={{ '--i': index } as CSSProperties}
+              >
+                {/* 左侧渐变光条：给每张卡片一个"通电"的视觉锚点 */}
+                <span className="feature-edge" aria-hidden="true" />
+                <div className="flex items-start gap-3">
+                  <span className="feature-index">{String(index + 1).padStart(2, '0')}</span>
+                  <div className="min-w-0">
+                    <h3 className="card-title mb-0">
+                      <Icon className="h-4 w-4 text-accent-sky" aria-hidden="true" />
+                      {group.title}
+                    </h3>
+                    <p className="mt-1 text-[11px] leading-5 text-t4">{group.summary}</p>
+                  </div>
+                </div>
                 <ul className="mt-3 space-y-2">
                   {group.items.map((item) => (
                     <li key={item} className="flex gap-2 text-xs leading-5 text-t3">
@@ -100,41 +177,38 @@ export default function AboutPage() {
           })}
         </div>
 
-        <h2 className="mb-4 mt-10 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">
-          <SlidersHorizontal className="h-4 w-4 text-accent-amber" aria-hidden="true" />
-          技术
-        </h2>
+        {/* ================= 技术 ================= */}
+        <SectionHeading index="03" icon={SlidersHorizontal} title="技术" tone="amber" />
         <div className="grid gap-4 sm:grid-cols-3">
-          {TECH_LAYERS.map((layer) => (
-            <section className="card" key={layer.name}>
+          {TECH_LAYERS.map((layer, index) => (
+            <section key={layer.name} className="card" data-reveal style={{ '--i': index } as CSSProperties}>
               <h3 className="card-title">{layer.name}</h3>
-              <ul className="space-y-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {layer.stack.map((entry) => (
-                  <li key={entry} className="text-[11px] leading-5 text-t3">
+                  <span key={entry} className="pill">
                     {entry}
-                  </li>
+                  </span>
                 ))}
-              </ul>
+              </div>
             </section>
           ))}
         </div>
 
-        <section className="card mt-4">
-          <h3 className="card-title">
-            <Gauge className="h-4 w-4 text-accent-emerald" aria-hidden="true" />
-            几个有意为之的取舍
-          </h3>
-          <ul className="space-y-2">
-            {PRINCIPLES.map((item) => (
-              <li key={item} className="flex gap-2 text-xs leading-5 text-t3">
-                <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent-emerald" aria-hidden="true" />
-                <span>{item}</span>
+        {/* ================= 取舍 ================= */}
+        <SectionHeading index="04" icon={Gauge} title="几个有意为之的取舍" tone="emerald" />
+        <section className="card" data-reveal>
+          <ul className="space-y-3">
+            {PRINCIPLES.map((item, index) => (
+              <li key={item} className="numbered-item">
+                <span className="n">{String(index + 1).padStart(2, '0')}</span>
+                <span className="text-t3">{item}</span>
               </li>
             ))}
           </ul>
         </section>
 
-        <footer className="mt-10 border-t border-line-soft pt-6 text-center">
+        {/* ================= 页脚 ================= */}
+        <footer className="mt-12 border-t border-line-soft pt-6 text-center">
           <p className="mx-auto max-w-lg text-[11px] leading-5 text-t5">{COMPLIANCE_NOTE}</p>
           {HAS_FILING && (
             <p className="mt-3 text-[11px] text-t5">
@@ -167,6 +241,59 @@ export default function AboutPage() {
           </a>
         </footer>
       </div>
+    </div>
+  )
+}
+
+/** 数据看板里的一格：数字从 0 滚到目标值（减弱动效下直接显示） */
+function StatTile({
+  value,
+  unit,
+  label,
+  index,
+}: {
+  value: number | string
+  unit?: string
+  label: string
+  index: number
+}) {
+  const animated = useCountUp(typeof value === 'number' ? value : 0)
+  const shown = typeof value === 'number' ? animated.toLocaleString('en-US') : value
+
+  return (
+    <div className="stat-tile" data-reveal style={{ '--i': 4 + index } as CSSProperties}>
+      <div className="stat-value tnum">
+        {shown}
+        {unit && <span className="stat-unit">{unit}</span>}
+      </div>
+      <div className="stat-label">{label}</div>
+    </div>
+  )
+}
+
+/** 分区标题：两位序号 + 图标 + 标题，右侧拖一条渐隐分隔线 */
+function SectionHeading({
+  index,
+  icon: Icon,
+  title,
+  tone = 'sky',
+}: {
+  index: string
+  icon: typeof Info
+  title: string
+  tone?: 'sky' | 'emerald' | 'amber'
+}) {
+  const iconTone =
+    tone === 'emerald' ? 'text-accent-emerald' : tone === 'amber' ? 'text-accent-amber' : 'text-accent-sky'
+
+  return (
+    <div className="mb-4 mt-12" data-reveal>
+      <div className="flex items-center gap-2">
+        <span className="section-index">{index}</span>
+        <Icon className={`h-4 w-4 ${iconTone}`} aria-hidden="true" />
+        <h2 className="text-sm font-semibold tracking-wide text-t2">{title}</h2>
+      </div>
+      <div className="section-rule mt-2.5" aria-hidden="true" />
     </div>
   )
 }

@@ -97,6 +97,7 @@
   --card-topline: rgba(255, 255, 255, 0.08);
   --glow-strength: 1;
   --spot: rgba(56, 189, 248, 0.1);
+  --hero-grad: linear-gradient(100deg, #38bdf8 0%, #34d399 48%, #a78bfa 100%);
 }
 
 [data-theme='light'] {
@@ -182,6 +183,7 @@
   --card-topline: rgba(2, 132, 199, 0.42);
   --glow-strength: 0.75;
   --spot: rgba(2, 132, 199, 0.14);
+  --hero-grad: linear-gradient(100deg, #0369a1 0%, #047857 48%, #6d28d9 100%);
 }
 
 html,
@@ -865,4 +867,191 @@ html.theme-anim *::after {
 @keyframes halo-pulse {
   0%, 100% { opacity: 0.55; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.22); }
+}
+
+/* ============================================================
+   「关于本站」展示页（2026-10-10）
+   它是给访客/招聘方看的门面，视觉可以比应用内页更"张扬"；
+   但性能底线不变：只动 transform/opacity/background-position，
+   滚动揭示用 IntersectionObserver（不监听 scroll 做计算）。
+   ============================================================ */
+
+/* ---- 滚动揭示：元素进入视口时淡入上浮（--i 控制同组错峰）---- */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 640ms var(--ease-out),
+    transform 640ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 65ms);
+}
+[data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---- Hero 标题：流动的渐变文字 ---- */
+.hero-gradient-text {
+  background-image: var(--hero-grad);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 10s var(--ease-in-out) infinite alternate;
+}
+@keyframes gradient-pan {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+/* ---- Hero 徽章：一枚"已上线"的状态胶囊 ---- */
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(var(--c-emerald-rgb) / 0.35);
+  background: rgb(var(--c-emerald-rgb) / 0.1);
+  padding: 0.2rem 0.7rem;
+  font-size: 0.6875rem;
+  color: rgb(var(--c-emerald-text-rgb));
+}
+.hero-badge::before {
+  content: '';
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: rgb(var(--c-emerald-rgb));
+  box-shadow: 0 0 8px rgb(var(--c-emerald-rgb) / 0.9);
+  animation: dot-breathe 2.4s var(--ease-in-out) infinite;
+}
+@keyframes dot-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.8); }
+}
+
+/* ---- 数据看板 ---- */
+.stat-tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.85rem;
+  border: 1px solid var(--line);
+  background: var(--fill);
+  padding: 0.85rem 0.5rem 0.7rem;
+  text-align: center;
+}
+.stat-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(130px circle at 50% -20%, rgb(var(--c-sky-rgb) / 0.16), transparent 70%);
+  pointer-events: none;
+}
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--t1);
+}
+.stat-unit {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--t4);
+  margin-left: 0.15rem;
+}
+.stat-label {
+  margin-top: 0.15rem;
+  font-size: 0.625rem;
+  color: var(--t4);
+  letter-spacing: 0.04em;
+}
+
+/* ---- 技术栈徽章 ---- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: var(--fill);
+  padding: 0.18rem 0.6rem;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--t3);
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.pill:hover {
+  border-color: rgb(var(--c-sky-rgb) / 0.5);
+  background: rgb(var(--c-sky-rgb) / 0.08);
+  color: rgb(var(--c-sky-text-rgb));
+}
+
+/* ---- 分区标题：序号 + 图标 + 一条渐隐的分隔线 ---- */
+.section-index {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--c-sky-text-rgb));
+}
+.section-rule {
+  height: 1px;
+  background: linear-gradient(90deg, rgb(var(--c-sky-rgb) / 0.55), rgb(var(--c-sky-rgb) / 0) 85%);
+}
+
+/* ---- 功能卡片：序号与左侧渐变光条 ---- */
+.feature-index {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  color: rgb(var(--c-sky-text-rgb) / 0.75);
+}
+.feature-edge {
+  position: absolute;
+  left: 0;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  width: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(to bottom, rgb(var(--c-sky-rgb) / 0.75), rgb(var(--c-sky-rgb) / 0));
+}
+
+/* ---- 顶部阅读进度条 ---- */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 50;
+  pointer-events: none;
+}
+.reading-progress::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: var(--progress, 0%);
+  background: linear-gradient(90deg, rgb(var(--c-sky-rgb)), rgb(var(--c-emerald-rgb)));
+  box-shadow: 0 0 10px rgb(var(--c-sky-rgb) / 0.55);
+}
+
+/* ---- 原则 / 引入条目：序号化的清单 ---- */
+.numbered-item {
+  display: flex;
+  gap: 0.625rem;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.numbered-item .n {
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--c-emerald-text-rgb) / 0.85);
+  padding-top: 0.2rem;
 }

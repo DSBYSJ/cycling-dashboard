@@ -1,4 +1,6 @@
 /// <reference types="vitest/config" />
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { extname, join } from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -17,10 +19,69 @@ import { version as pkgVersion } from './package.json'
  */
 const APP_VERSION = pkgVersion
 
+/**
+ * 「关于本站」页面的数据看板：**构建时真数一遍**，而不是在页面上手写数字。
+ *
+ * 手写的统计数字过两周就会与代码对不上 —— 而这份页面的读者恰恰是来核实
+ * "这东西到底有多少分量"的人，数字说谎比没有数字更糟。所以每次构建都重新统计，
+ * 通过 define 注入成 `__PROJECT_STATS__`。
+ */
+function walkSource(dir: string, exts: string[], acc = { files: 0, lines: 0 }) {
+  if (!existsSync(dir)) return acc
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name === '__tests__') continue
+      walkSource(p, exts, acc)
+    } else if (exts.includes(extname(entry.name)) && !entry.name.includes('.test.')) {
+      acc.files++
+      acc.lines += readFileSync(p, 'utf-8').split('\n').length
+    }
+  }
+  return acc
+}
+
+function countTestCases(dirs: string[]) {
+  let files = 0
+  let cases = 0
+  const walk = (dir: string) => {
+    if (!existsSync(dir)) return
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        walk(p)
+      } else if (entry.name.includes('.test.')) {
+        files++
+        cases += (readFileSync(p, 'utf-8').match(/^\s*(?:it|test)\s*\(/gm) ?? []).length
+      }
+    }
+  }
+  dirs.forEach(walk)
+  return { files, cases }
+}
+
+const appCode = walkSource('src', ['.ts', '.tsx'])
+const serverCode = walkSource('server/src', ['.ts'])
+const tests = countTestCases(['src', 'server/test'])
+const frontendPkg = JSON.parse(readFileSync('package.json', 'utf-8'))
+const backendPkg = JSON.parse(readFileSync('server/package.json', 'utf-8'))
+
+const PROJECT_STATS = {
+  appFiles: appCode.files,
+  appLines: appCode.lines,
+  serverFiles: serverCode.files,
+  serverLines: serverCode.lines,
+  testFiles: tests.files,
+  testCases: tests.cases,
+  frontendDeps: Object.keys(frontendPkg.dependencies ?? {}).length,
+  backendDeps: Object.keys(backendPkg.dependencies ?? {}).length,
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
+    __PROJECT_STATS__: JSON.stringify(PROJECT_STATS),
   },
   // 产物用相对路径:既可部署到子目录,也是后续用 Capacitor 打包安卓 App 的前提
   base: './',

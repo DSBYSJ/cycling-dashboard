@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Bike } from 'lucide-react'
+import AuroraBackground from './components/AuroraBackground'
 import AboutPage from './components/AboutPage'
 import AuthPage from './components/auth/AuthPage'
 import Dashboard from './components/Dashboard'
@@ -43,7 +44,7 @@ function useIsAboutRoute(): boolean {
 
 function BootScreen() {
   return (
-    <div className="flex min-h-full items-center justify-center bg-page">
+    <div className="flex min-h-full items-center justify-center">
       <div className="flex flex-col items-center gap-2 text-t4" role="status" aria-live="polite">
         <Bike className="h-6 w-6" aria-hidden="true" />
         <span className="text-xs">正在连接服务器…</span>
@@ -59,9 +60,11 @@ export default function App() {
   // 公开页排在最前面，有两个原因：
   //   1. 访客不该先看一屏「正在连接服务器」再看到内容
   //   2. 后端不可用时这一页也要能打开 —— 它是站点的门面，不依赖接口
-  if (isAbout) return <AboutPage />
-
-  if (status === 'checking') return <BootScreen />
-  if (status === 'anonymous') return <AuthPage />
-  return <Dashboard />
+  // 氛围层（极光 + 网格）纯 CSS，不依赖任何接口，所以连它一起挂在最外层
+  return (
+    <>
+      <AuroraBackground />
+      {isAbout ? <AboutPage /> : status === 'checking' ? <BootScreen /> : status === 'anonymous' ? <AuthPage /> : <Dashboard />}
+    </>
+  )
 }

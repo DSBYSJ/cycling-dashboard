@@ -69,7 +69,7 @@ function SpeedChart({ data }: Props) {
         均速 {chart.avg.toFixed(1)} km/h
       </text>
       {/* 速度曲线:单调插值,陡变处不会冲出图表区域 */}
-      <path d={monotonePath(chart.coords)} fill="none" className="chart-speed" strokeWidth="2" strokeLinecap="round" />
+      <path d={monotonePath(chart.coords)} fill="none" className="chart-speed chart-draw" pathLength={1} strokeWidth="2" strokeLinecap="round" />
       {chart.coords.length > 0 && (
         <circle cx={chart.coords[chart.coords.length - 1][0]} cy={chart.coords[chart.coords.length - 1][1]} r="3" className="chart-dot-speed" />
       )}

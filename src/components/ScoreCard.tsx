@@ -1,10 +1,12 @@
-import { memo } from 'react'
+import { memo, type CSSProperties } from 'react'
 import type { RideRecord } from '../types'
 import { rainLevelLabel } from '../utils/scoring'
+import { useCountUp } from '../hooks/useCountUp'
 
 /** 评分卡片:综合分、分项、降雨指数、文字评价与建议 */
 function ScoreCard({ record }: { record: RideRecord }) {
   const scores = record.scores
+  const animatedTotal = useCountUp(scores?.total ?? 0)
   if (!scores) {
     return (
       <div className="flex h-40 items-center justify-center text-sm text-t4">暂无评分数据</div>
@@ -16,11 +18,13 @@ function ScoreCard({ record }: { record: RideRecord }) {
   const band = scores.total >= 85 ? 'excellent' : scores.total >= 70 ? 'good' : scores.total >= 50 ? 'fair' : 'poor'
   const scoreColor = `score-text-${band}`
   const ringClass = `score-ring-${band}`
+  /** 环的露出比例 → dashoffset（pathLength 归一为 1，见 index.css 的 .ring-draw） */
+  const ringOffset = 1 - scores.total / 100
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-5">
-        {/* 综合评分环形 */}
+        {/* 综合评分环形:入场时从 0 扫到目标值（.ring-draw，同时提供静态值兜底） */}
         <div className="relative h-28 w-28 shrink-0">
           <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
             <circle cx="50" cy="50" r="42" fill="none" className="chart-grid" strokeWidth="10" />
@@ -29,14 +33,17 @@ function ScoreCard({ record }: { record: RideRecord }) {
               cy="50"
               r="42"
               fill="none"
-              className={ringClass}
+              className={`${ringClass} ring-draw`}
               strokeWidth="10"
               strokeLinecap="round"
-              strokeDasharray={`${(scores.total / 100) * 2 * Math.PI * 42} ${2 * Math.PI * 42}`}
+              pathLength={1}
+              strokeDasharray="1"
+              strokeDashoffset={ringOffset}
+              style={{ '--ring-offset': ringOffset } as CSSProperties}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`tnum text-3xl font-bold ${scoreColor}`}>{scores.total}</span>
+            <span className={`tnum glow-text text-3xl font-bold ${scoreColor}`}>{animatedTotal}</span>
             <span className="text-[10px] text-t4">综合评分</span>
           </div>
         </div>
@@ -81,7 +88,10 @@ function SubScore({ label, value, color }: { label: string; value: number; color
         <span className="text-lg font-semibold text-t1">{value}</span>
       </div>
       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fill-strong">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${value}%` }} />
+        <div
+          className={`bar-grow h-full rounded-full ${color}`}
+          style={{ width: `${value}%`, '--w': `${value}%` } as CSSProperties}
+        />
       </div>
     </div>
   )

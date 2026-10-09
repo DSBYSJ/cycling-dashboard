@@ -88,6 +88,15 @@
   --solid-neutral-bg: #475569;
   --solid-neutral-bg-hover: #64748b;
   --solid-neutral-fg: #f8fafc;
+
+  /* ---- 氛围层（炫技视觉；浅色主题下整体调淡）---- */
+  --aurora-1: rgba(56, 189, 248, 0.16);
+  --aurora-2: rgba(167, 139, 250, 0.12);
+  --aurora-3: rgba(52, 211, 153, 0.1);
+  --grid-line: rgba(148, 163, 184, 0.07);
+  --card-topline: rgba(255, 255, 255, 0.08);
+  --glow-strength: 1;
+  --spot: rgba(56, 189, 248, 0.1);
 }
 
 [data-theme='light'] {
@@ -160,6 +169,15 @@
   --solid-neutral-bg: #334155;
   --solid-neutral-bg-hover: #475569;
   --solid-neutral-fg: #f8fafc;
+
+  /* ---- 氛围层：浅色主题下光斑更淡、网格更浅，避免"脏"---- */
+  --aurora-1: rgba(2, 132, 199, 0.09);
+  --aurora-2: rgba(124, 58, 237, 0.06);
+  --aurora-3: rgba(5, 150, 105, 0.06);
+  --grid-line: rgba(15, 23, 42, 0.045);
+  --card-topline: rgba(255, 255, 255, 0.9);
+  --glow-strength: 0.55;
+  --spot: rgba(2, 132, 199, 0.07);
 }
 
 html,
@@ -587,4 +605,260 @@ body {
 }
 .score-text-poor {
   color: var(--score-poor);
+}
+
+/* ============================================================
+   氛围与技术感视觉层（2026-10-09 加入）
+   性能约定：全部只动 transform / opacity / stroke，不触发布局；
+   大范围光斑用 radial-gradient 而非 filter: blur()（省一次全屏合成）；
+   prefers-reduced-motion 下由上面的全局规则统一降级为瞬时。
+   ============================================================ */
+
+/* ---- 页底氛围：极光光斑 + 技术网格（z-index:-1 落在内容之下、页面底色之上）---- */
+.aurora-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--page);
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+}
+.aurora-blob-1 {
+  width: 70vw;
+  height: 70vw;
+  max-width: 900px;
+  max-height: 900px;
+  top: -22vw;
+  left: -12vw;
+  background: radial-gradient(circle, var(--aurora-1) 0%, transparent 66%);
+  animation: aurora-a 72s var(--ease-in-out) infinite alternate;
+}
+.aurora-blob-2 {
+  width: 60vw;
+  height: 60vw;
+  max-width: 780px;
+  max-height: 780px;
+  top: 8vw;
+  right: -18vw;
+  background: radial-gradient(circle, var(--aurora-2) 0%, transparent 66%);
+  animation: aurora-b 88s var(--ease-in-out) infinite alternate;
+}
+.aurora-blob-3 {
+  width: 56vw;
+  height: 56vw;
+  max-width: 720px;
+  max-height: 720px;
+  bottom: -20vw;
+  left: 22vw;
+  background: radial-gradient(circle, var(--aurora-3) 0%, transparent 66%);
+  animation: aurora-c 96s var(--ease-in-out) infinite alternate;
+}
+
+@keyframes aurora-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(9vw, 6vw, 0) scale(1.12); }
+}
+@keyframes aurora-b {
+  from { transform: translate3d(0, 0, 0) scale(1.08); }
+  to { transform: translate3d(-7vw, 9vw, 0) scale(1); }
+}
+@keyframes aurora-c {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(6vw, -8vw, 0) scale(1.15); }
+}
+
+/* 顶部网格：向下渐隐，制造"工程感"的纵深 */
+.grid-layer {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 55% at 50% 0%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 90% 55% at 50% 0%, #000 25%, transparent 78%);
+}
+
+/* ---- 卡片：顶部高光线 + 鼠标跟随光斑 ---- */
+.card {
+  position: relative;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, var(--card-topline) 50%, transparent);
+  pointer-events: none;
+}
+
+/* 光斑层：--mx/--my 由 useCardSpotlight 写入（事件委托 + rAF 节流，不进 React 状态）。
+   挂在 .card 上自动对所有卡片生效；只在悬停时淡入，静止时不占合成开销。 */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    240px circle at var(--mx, 50%) var(--my, 0%),
+    var(--spot),
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-out);
+  pointer-events: none;
+}
+.card:hover::after {
+  opacity: 1;
+}
+
+/* ---- 按钮：悬停时光带扫过（transform 驱动，GPU 合成）---- */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  bottom: -40%;
+  left: 0;
+  width: 38%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.32), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+.btn-shine:hover::after {
+  animation: shine-sweep 720ms var(--ease-out) both;
+}
+@keyframes shine-sweep {
+  to { transform: translateX(420%) skewX(-18deg); }
+}
+
+/* 实心按钮自动带光扫，不必逐个加类 */
+:is(.btn-primary, .btn-solid-sky, .btn-solid-emerald, .btn-solid-amber) {
+  position: relative;
+  overflow: hidden;
+}
+:is(.btn-primary, .btn-solid-sky, .btn-solid-emerald, .btn-solid-amber)::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  bottom: -40%;
+  left: 0;
+  width: 38%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+:is(.btn-primary, .btn-solid-sky, .btn-solid-emerald, .btn-solid-amber):hover::after {
+  animation: shine-sweep 720ms var(--ease-out) both;
+}
+
+/* ---- 评分环：入场时从 0 扫到目标值 ----
+   用法：SVG 加 pathLength={1}、strokeDasharray="1"，
+   style 里写 --ring-offset: 1 - 分数占比 */
+.ring-draw {
+  animation: ring-draw 820ms var(--ease-out) both;
+}
+@keyframes ring-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: var(--ring-offset, 0); }
+}
+
+/* ---- 图表曲线：像被"画"出来 ---- */
+.chart-draw {
+  stroke-dasharray: 1;
+  animation: chart-draw 1050ms var(--ease-out) both;
+}
+@keyframes chart-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.chart-fade-in {
+  animation: fade-in 900ms var(--ease-out) both;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---- 数字与徽章：轻微辉光，强化"数据仪表"感 ---- */
+.glow-text {
+  text-shadow: 0 0 calc(15px * var(--glow-strength))
+    color-mix(in oklab, currentColor 52%, transparent);
+}
+.glow-line {
+  box-shadow: 0 0 12px rgb(var(--c-sky-rgb) / 0.55);
+}
+
+/* ---- 顶栏：底部一条渐变光边 ---- */
+.header-glow::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 5%,
+    rgb(var(--c-sky-rgb) / 0.5) 35%,
+    rgb(var(--c-emerald-rgb) / 0.4) 65%,
+    transparent 95%
+  );
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* ---- 分页激活项：下划线发光 ---- */
+.tab-glow {
+  box-shadow: 0 0 10px rgb(var(--c-sky-rgb) / 0.8);
+}
+
+/* ---- 列表入场：逐项错峰（--i 由组件写入）---- */
+.stagger-in {
+  animation: rise-in var(--dur-3) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 38ms);
+}
+
+/* ---- 主题切换：短暂开启全站色彩过渡，避免整页"啪"地换色 ---- */
+html.theme-anim,
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition:
+    background-color 320ms var(--ease-in-out),
+    border-color 320ms var(--ease-in-out),
+    color 320ms var(--ease-in-out),
+    fill 320ms var(--ease-in-out),
+    stroke 320ms var(--ease-in-out) !important;
+}
+
+/* 分项进度条：入场从 0 长到目标宽度（--w 由组件写入；静态 width 同时保留作为兜底） */
+.bar-grow {
+  animation: grow-x 720ms var(--ease-out) both;
+}
+@keyframes grow-x {
+  from { width: 0; }
+}
+
+/* 折线末点光晕:缓慢呼吸,提示"最新一次"（transform-box 让 SVG 圆点以自身为中心缩放） */
+.halo-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: halo-pulse 2.6s var(--ease-in-out) infinite;
+}
+@keyframes halo-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.22); }
 }

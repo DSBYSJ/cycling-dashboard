@@ -5,6 +5,7 @@ import { useRides, useBikes, useDays, type SyncState } from '../hooks/useCloudDa
 import { useLegacyMigration } from '../hooks/useLegacyMigration'
 import { useTheme } from '../hooks/useTheme'
 import { useTabRoute, type TabId } from '../hooks/useTabRoute'
+import { useCardSpotlight } from '../hooks/useSpotlight'
 import { withTireStatus } from '../utils/tire'
 import { describeSimplification, simplifyRide } from '../utils/trackSimplify'
 import type { ImportSummary } from '../utils/backup'
@@ -99,6 +100,9 @@ export default function Dashboard() {
   } = useDays()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editing, setEditing] = useState<RideRecord | null>(null)
+
+  // 卡片辉光：事件委托 + rAF 节流，只写 CSS 变量、不进 React 状态（见 hooks/useSpotlight.ts）
+  useCardSpotlight()
   const { tab, navigate } = useTabRoute()
   const { isAdmin } = useAuth()
   const visibleTabs = useMemo(() => (isAdmin ? [...TABS, ADMIN_TAB] : TABS), [isAdmin])
@@ -370,7 +374,7 @@ export default function Dashboard() {
       </a>
 
       {/* 顶栏 */}
-      <header className="sticky top-0 z-20 border-b border-line bg-page/85 backdrop-blur">
+      <header className="header-glow sticky top-0 z-20 border-b border-line bg-page/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
           <div className="flex items-center gap-2.5">
             <BikeIcon className="h-5 w-5 text-accent-sky-text" aria-hidden="true" />
@@ -447,7 +451,7 @@ export default function Dashboard() {
                     title={tireAlert === 'expired' ? '有外胎超过建议寿命' : '有外胎接近寿命'}
                   />
                 )}
-                {active && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent-sky" />}
+                {active && <span className="tab-glow absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent-sky" />}
               </button>
             )
           })}

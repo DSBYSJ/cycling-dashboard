@@ -29,7 +29,7 @@ export default function AboutPage() {
   const { theme, toggle: toggleTheme } = useTheme()
 
   return (
-    <div className="min-h-full bg-page">
+    <div className="min-h-full">
       <div className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-6 flex justify-end">
           <button

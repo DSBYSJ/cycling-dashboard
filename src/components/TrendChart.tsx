@@ -148,30 +148,35 @@ function TrendChart({ rides }: Props) {
           </g>
         ))}
 
-        {/* 分项细线(作对照,弱化处理) */}
+        {/* 分项细线(作对照,弱化处理)：比主线晚一拍画出，形成层次 */}
         <path
           d={linePath(points.map((p) => [p.x, y(p.weather)]))}
           fill="none"
-          className="chart-weather"
+          className="chart-weather chart-draw"
+          pathLength={1}
           strokeWidth="1.5"
           opacity="0.5"
           strokeLinejoin="round"
+          style={{ animationDelay: '140ms' }}
         />
         <path
           d={linePath(points.map((p) => [p.x, y(p.route)]))}
           fill="none"
-          className="chart-route"
+          className="chart-route chart-draw"
+          pathLength={1}
           strokeWidth="1.5"
           opacity="0.5"
           strokeLinejoin="round"
+          style={{ animationDelay: '220ms' }}
         />
 
-        {/* 综合评分:面积 + 主线 + 数值 */}
-        <path d={areaPath(points.map((p) => [p.x, y(p.total)]), baseline)} fill="url(#trendArea)" stroke="none" />
+        {/* 综合评分:面积 + 主线 + 数值（主线"画"出来，面积淡入） */}
+        <path d={areaPath(points.map((p) => [p.x, y(p.total)]), baseline)} fill="url(#trendArea)" stroke="none" className="chart-fade-in" />
         <path
           d={linePath(points.map((p) => [p.x, y(p.total)]))}
           fill="none"
-          className="chart-total"
+          className="chart-total chart-draw"
+          pathLength={1}
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -180,7 +185,7 @@ function TrendChart({ rides }: Props) {
           const isLast = i === points.length - 1
           return (
             <g key={p.ride.id}>
-              {isLast && <circle cx={p.x} cy={y(p.total)} r="7" className="chart-halo-total" />}
+              {isLast && <circle cx={p.x} cy={y(p.total)} r="7" className="chart-halo-total halo-pulse" />}
               <circle cx={p.x} cy={y(p.total)} r={isLast ? 4.5 : 3.2} className="chart-dot-total" />
               <text
                 x={p.x}

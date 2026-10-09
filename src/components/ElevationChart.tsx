@@ -90,8 +90,8 @@ function ElevationChart({ track }: Props) {
         最高 {Math.round(chart.eleMax)} m
       </text>
       {/* 海拔面积:描边与填充共用同一条单调曲线,不会错位 */}
-      <path d={monotoneAreaPath(chart.coords, chart.baseline)} fill="url(#eleGradient)" stroke="none" />
-      <path d={monotonePath(chart.coords)} fill="none" className="chart-elevation" strokeWidth="2" strokeLinecap="round" />
+      <path d={monotoneAreaPath(chart.coords, chart.baseline)} fill="url(#eleGradient)" stroke="none" className="chart-fade-in" />
+      <path d={monotonePath(chart.coords)} fill="none" className="chart-elevation chart-draw" pathLength={1} strokeWidth="2" strokeLinecap="round" />
       <defs>
         <linearGradient id="eleGradient" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" className="chart-ele-area-top" />

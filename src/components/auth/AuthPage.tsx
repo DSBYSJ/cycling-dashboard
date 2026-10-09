@@ -124,7 +124,7 @@ export default function AuthPage() {
   const shownError = localError ?? error
 
   return (
-    <div className="relative flex min-h-full items-center justify-center bg-page px-4 py-10">
+    <div className="relative flex min-h-full items-center justify-center px-4 py-10">
       <button
         type="button"
         onClick={toggleTheme}

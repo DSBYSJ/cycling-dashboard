@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react'
 import { BarChart3 } from 'lucide-react'
 import type { RideRecord } from '../types'
 import { scaleLinear } from '../utils/chartHelpers'
+import { useCountUp } from '../hooks/useCountUp'
 
 interface Props {
   rides: RideRecord[]
@@ -121,10 +122,13 @@ function StatsOverview({ rides }: Props) {
 }
 
 function Metric({ value, unit, label, accent }: { value: number | string; unit: string; label: string; accent?: boolean }) {
+  // 数字型指标滚动到目标值（字符串指标如"12 / 8"直接显示）
+  const animated = useCountUp(typeof value === 'number' ? value : 0)
+  const shown = typeof value === 'number' ? animated : value
   return (
     <div className="text-center">
       <div className={`tnum text-base font-semibold ${accent ? 'text-accent-emerald' : 'text-t1'}`}>
-        {value}
+        {shown}
         {unit && <span className="ml-0.5 text-[10px] font-normal text-t4">{unit}</span>}
       </div>
       <div className="text-[10px] text-t4">{label}</div>

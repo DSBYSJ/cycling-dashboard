@@ -28,6 +28,11 @@ applyToDocument(current)
 
 export function setTheme(theme: Theme) {
   current = theme
+  // 切换瞬间给 <html> 挂上过渡类：色彩平滑过渡 320ms，而不是整页"啪"地换色。
+  // 只在切换期间挂载 —— 长期挂在所有元素上会让滚动/交互变重。
+  const root = document.documentElement
+  root.classList.add('theme-anim')
+  window.setTimeout(() => root.classList.remove('theme-anim'), 360)
   applyToDocument(theme)
   try {
     localStorage.setItem(STORAGE_KEY, theme)

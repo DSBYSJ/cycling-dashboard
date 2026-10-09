@@ -22,6 +22,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.6',
+    date: '2026-10-09',
+    groups: [
+      {
+        title: '修复',
+        items: [
+          '登录页页脚排版：改为统一容器与一致间距（原来 16/16/12/12px 混用，节奏不匀）',
+          '安全说明整块居中、两行文字左对齐 —— 原先图标占位会让文字轴线与下方各行错开几个像素，看起来「不齐」',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.5',
     date: '2026-10-09',
     groups: [

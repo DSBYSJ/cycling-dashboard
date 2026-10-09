@@ -281,32 +281,33 @@ export default function AuthPage() {
           </p>
         </div>
 
-        <p className="mt-4 flex items-start justify-center gap-1.5 text-[11px] leading-5 text-t5">
-          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span>
-            密码用 scrypt 加盐哈希，不存明文；
-            <br />
-            登录态存在 httpOnly Cookie 里，网页脚本读不到
-          </span>
-        </p>
-
-        {/* 公开页入口：没有账号的人也能看到这个项目做了什么、用了什么技术 */}
-        <p className="mt-4 text-center text-[11px] text-t5">
-          <a href="#/about" className="transition hover:text-t2">
-            了解本站 · 功能与技术
-          </a>
-        </p>
-
-        {/* 备案信息来自环境变量；未配置时整块不渲染 */}
-        {HAS_FILING && (
-          <p className="mt-3 text-center text-[11px] text-t5">
-            <FilingRecords />
+        <footer className="mt-5 space-y-2.5 text-center text-[11px] leading-5 text-t5">
+          {/* 安全说明：整块居中（mx-auto），文字左对齐让两行对齐。
+              之前用 flex + justify-center 逐段堆叠，图标会占位导致文字轴线与下方各行
+              错开几个像素，看起来"不齐"；改成统一容器 + 一致间距后各块同一轴线。 */}
+          <p className="mx-auto flex max-w-[19rem] items-start gap-1.5 text-left">
+            <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>密码用 scrypt 加盐哈希，不存明文；登录态存在 httpOnly Cookie 里，网页脚本读不到</span>
           </p>
-        )}
 
-        <p className="mt-3 text-center text-[11px] text-t5">
-          <AppVersion />
-        </p>
+          {/* 公开页入口：没有账号的人也能看到这个项目做了什么、用了什么技术 */}
+          <p>
+            <a href="#/about" className="transition hover:text-t2">
+              了解本站 · 功能与技术
+            </a>
+          </p>
+
+          {/* 备案信息来自环境变量；未配置时整块不渲染 */}
+          {HAS_FILING && (
+            <p>
+              <FilingRecords />
+            </p>
+          )}
+
+          <p>
+            <AppVersion />
+          </p>
+        </footer>
       </div>
     </div>
   )

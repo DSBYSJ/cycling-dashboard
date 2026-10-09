@@ -18,6 +18,7 @@ import { APP_VERSION } from '../version'
 import { PROJECT_STATS } from '../stats'
 import { AppVersion } from './AppVersion'
 import { HAS_FILING, FilingRecords } from './FilingRecords'
+import ParticleField from './ParticleField'
 import {
   COMPLIANCE_NOTE,
   FEATURE_GROUPS,
@@ -60,7 +61,9 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-full">
-      {/* 阅读进度：一条随滚动前进的渐变细线 */}
+      {/* 展示型页面的氛围：星场粒子 + 扫描线 + 阅读进度 */}
+      <ParticleField />
+      <div className="scanline" aria-hidden="true" />
       <div className="reading-progress" aria-hidden="true" style={{ '--progress': `${progress * 100}%` } as CSSProperties} />
 
       <div className="mx-auto max-w-3xl px-4 py-8">

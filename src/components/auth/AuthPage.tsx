@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ArrowRight, Bike, Compass, Eye, EyeOff, Moon, ShieldCheck, Sun } from 'lucide-react'
+import ParticleField from '../ParticleField'
 import { api } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
@@ -125,6 +126,10 @@ export default function AuthPage() {
 
   return (
     <div className="relative flex min-h-full items-center justify-center px-4 py-10">
+      {/* 展示型页面的氛围：星场粒子 + 一条缓缓掠过的扫描线（都在内容之下、不影响操作） */}
+      <ParticleField />
+      <div className="scanline" aria-hidden="true" />
+
       <button
         type="button"
         onClick={toggleTheme}
@@ -148,6 +153,8 @@ export default function AuthPage() {
         </div>
 
         <div className="card p-5">
+          {/* 描边上缓慢环绕的彩光（@property + conic-gradient，不支持的浏览器退回静态边） */}
+          <span className="glow-ring" aria-hidden="true" />
           <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg border border-line bg-fill p-1" role="tablist">
             {(
               [

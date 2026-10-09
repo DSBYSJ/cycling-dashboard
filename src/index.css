@@ -1055,3 +1055,83 @@ html.theme-anim *::after {
   color: rgb(var(--c-emerald-text-rgb) / 0.85);
   padding-top: 0.2rem;
 }
+
+/* ============================================================
+   粒子与光影增强（2026-10-10 二轮）
+   粒子走 Canvas（见 ParticleField.tsx），这里只放静态样式。
+   ============================================================ */
+
+/* ---- 星场粒子层：与极光同层（z-index:-1），DOM 顺序在极光之后 → 浮在极光上 ---- */
+.particle-field {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ---- 扫描线：一条极淡的横向光带缓缓掠过，给页面一点"运行中"的暗示。
+   用 transform 驱动（不碰 top），12s 一轮，几乎察觉不到但不至于死板 ---- */
+.scanline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 170px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgb(var(--c-sky-rgb) / 0.06), transparent);
+  transform: translateY(-25vh);
+  animation: scan-move 13s linear infinite;
+}
+@keyframes scan-move {
+  to { transform: translateY(125vh); }
+}
+
+/* ---- 旋转光边：登录卡片的描边上一道缓慢环绕的彩光 ----
+   用 @property 注册角度变量才能对它做动画；不支持的浏览器会退回静态光边（可接受的降级）。
+   注意：.card 的 ::before / ::after 已被占用（顶部高光 / 鼠标光斑），
+   所以这里用实体 <span class="glow-ring"> 而不是伪元素。 */
+@property --ring-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.glow-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--ring-angle),
+    transparent 0deg,
+    rgb(var(--c-sky-rgb) / 0.85) 40deg,
+    rgb(var(--c-emerald-rgb) / 0.55) 78deg,
+    transparent 130deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: ring-rotate 7s linear infinite;
+  pointer-events: none;
+}
+@keyframes ring-rotate {
+  to { --ring-angle: 360deg; }
+}
+
+/* ---- 主按钮的呼吸光晕：给主操作一点"活着"的存在感。
+   只有一个元素在动，box-shadow 重绘成本可接受；减弱动效下自动关闭。---- */
+@media (prefers-reduced-motion: no-preference) {
+  .btn-primary {
+    animation: btn-breathe 3.4s var(--ease-in-out) infinite;
+  }
+}
+@keyframes btn-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--c-sky-rgb) / 0); }
+  50% { box-shadow: 0 0 18px 2px rgb(var(--c-sky-rgb) / 0.4); }
+}

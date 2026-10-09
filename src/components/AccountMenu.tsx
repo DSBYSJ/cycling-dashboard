@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { Compass, KeyRound, LogOut, ShieldCheck, User } from 'lucide-react'
+import { ChevronDown, Compass, KeyRound, LogOut, ShieldCheck, User } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 
 /** 与后端 auth/password.ts 的 PASSWORD_MIN_LENGTH 保持一致 */
@@ -95,7 +95,7 @@ export default function AccountMenu({ onOpenAdmin }: { onOpenAdmin?: () => void 
         aria-haspopup="menu"
         aria-expanded={open}
         title={user.email}
-        className="flex max-w-[10rem] items-center gap-1 rounded-full border border-line bg-fill px-2.5 py-1 text-t2 transition hover:bg-fill-strong"
+        className="group flex max-w-[10rem] items-center gap-1.5 rounded-full border border-line bg-fill py-1 pl-2.5 pr-2 text-t2 transition hover:border-accent-sky/40 hover:bg-fill-strong active:scale-95"
       >
         {isAdmin ? (
           <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-accent-sky-text" aria-hidden="true" />
@@ -103,12 +103,17 @@ export default function AccountMenu({ onOpenAdmin }: { onOpenAdmin?: () => void 
           <User className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         )}
         <span className="truncate">{user.email}</span>
+        {/* 开合方向指示：菜单展开时箭头转 180° */}
+        <ChevronDown
+          className={`h-3 w-3 shrink-0 text-t4 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-30 mt-2 w-72 rounded-xl border border-line bg-surface p-3 shadow-lg"
+          className="menu-pop absolute right-0 z-30 mt-2 w-72 rounded-xl border border-line bg-surface p-3 shadow-lg"
         >
           <div className="flex items-start gap-2 border-b border-line pb-3">
             <User className="mt-0.5 h-4 w-4 shrink-0 text-t4" aria-hidden="true" />

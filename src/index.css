@@ -831,9 +831,51 @@ body {
   pointer-events: none;
 }
 
-/* ---- 分页激活项：下划线发光 ---- */
-.tab-glow {
-  box-shadow: 0 0 10px rgb(var(--c-sky-rgb) / 0.8);
+/* ---- 分页滑动指示条：位置由 Dashboard 测量后写入 transform/width，
+   切换页签时平滑滑过去（首帧不加过渡，避免从左侧"飞"过来）---- */
+.tab-indicator {
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgb(var(--c-sky-rgb)), rgb(var(--c-emerald-rgb)));
+  box-shadow: 0 0 10px rgb(var(--c-sky-rgb) / 0.7);
+  pointer-events: none;
+}
+.tab-indicator-anim {
+  transition:
+    transform var(--dur-2) var(--ease-out),
+    width var(--dur-2) var(--ease-out);
+}
+
+/* ---- 顶栏控制（2026-10-10）：品牌徽标 / 状态呼吸点 / 菜单入场 ---- */
+
+/* 品牌徽标：把图标装进一枚小方章，与页面的"光"体系同源 */
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgb(var(--c-sky-rgb) / 0.25);
+  background: linear-gradient(135deg, rgb(var(--c-sky-rgb) / 0.16), rgb(var(--c-emerald-rgb) / 0.1));
+  color: rgb(var(--c-sky-text-rgb));
+  box-shadow: 0 0 14px rgb(var(--c-sky-rgb) / 0.18);
+}
+
+/* 状态点呼吸：提示"数据是活的"（已同步 / 同步中） */
+.status-live {
+  animation: dot-breathe 2.8s var(--ease-in-out) infinite;
+}
+
+/* 账号下拉菜单入场：轻微下落 + 展开（transform-origin 在右上角，像从按钮里长出来） */
+.menu-pop {
+  animation: menu-pop var(--dur-2) var(--ease-out) both;
+  transform-origin: top right;
+}
+@keyframes menu-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
 }
 
 /* ---- 列表入场：逐项错峰（--i 由组件写入）---- */

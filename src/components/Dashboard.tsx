@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Bike as BikeIcon, Moon, Sun, WifiOff } from 'lucide-react'
 import type { Bike, RideRecord } from '../types'
 import { useRides, useBikes, useDays, type SyncState } from '../hooks/useCloudData'
@@ -222,6 +222,43 @@ export default function Dashboard() {
     return null
   }, [bikes])
 
+  /**
+   * 分页滑动指示条：切换页签时下划线平滑滑到新位置（窗口缩放、字体晚到也会重算）。
+   * 测量放在 useLayoutEffect —— 在浏览器绘制前完成，避免肉眼看到"先跳一下再滑"；
+   * 位置进 state 后动画完全交给 CSS 的 transform/width 过渡。
+   * 首次定位不加过渡（indicatorReady），否则指示条会从最左侧"飞"过来。
+   */
+  const navRef = useRef<HTMLElement | null>(null)
+  const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null)
+  const [indicatorReady, setIndicatorReady] = useState(false)
+  useLayoutEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    let cancelled = false
+    let raf = 0
+    const update = () => {
+      const btn = nav.querySelector<HTMLElement>(`[data-tab="${tab}"]`)
+      if (!btn) return
+      // 左右各内缩 8px（对应原下划线的 inset-x-2）
+      const next = { left: btn.offsetLeft + 8, width: btn.offsetWidth - 16 }
+      setIndicator((prev) => (prev && prev.left === next.left && prev.width === next.width ? prev : next))
+      if (!raf) raf = requestAnimationFrame(() => setIndicatorReady(true))
+    }
+    update()
+    window.addEventListener('resize', update)
+    // 字体晚到会改变标签宽度，字体就绪后再校准一次
+    if (document.fonts) {
+      void document.fonts.ready.then(() => {
+        if (!cancelled) update()
+      }).catch(() => {})
+    }
+    return () => {
+      cancelled = true
+      window.removeEventListener('resize', update)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [tab, isAdmin, rides.length, tireAlert])
+
   /** 当前记录使用的单车名称 */
   const selectedBikeName = useMemo(() => {
     if (!selected?.bikeId) return null
@@ -375,22 +412,47 @@ export default function Dashboard() {
 
       {/* 顶栏 */}
       <header className="header-glow sticky top-0 z-20 border-b border-line bg-page/85 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-          <div className="flex items-center gap-2.5">
-            <BikeIcon className="h-5 w-5 text-accent-sky-text" aria-hidden="true" />
-            <h1 className="text-base font-bold tracking-wide text-t1">骑行评分监测看板</h1>
-            <span className="hidden rounded-full border border-accent-sky/30 bg-accent-sky/10 px-2 py-0.5 text-[10px] text-accent-sky-text sm:inline">
-              天气 60% · 路线 40%
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
+          {/* 品牌区：徽标 + 标题 + 评分口径。标题可截断，窄屏不挤爆右栏 */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="brand-mark shrink-0">
+              <BikeIcon className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <h1 className="truncate text-base font-bold tracking-wide text-t1">骑行评分监测看板</h1>
+            <span
+              className="hidden shrink-0 items-center gap-1.5 rounded-full border border-line bg-fill px-2.5 py-1 text-[10px] text-t3 sm:inline-flex"
+              title="综合评分权重：天气适宜度 60% + 路线质量 40%"
+            >
+              <span className="inline-flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent-sky" aria-hidden="true" />
+                天气 60%
+              </span>
+              <span className="h-3 w-px bg-line" aria-hidden="true" />
+              <span className="inline-flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent-emerald" aria-hidden="true" />
+                路线 40%
+              </span>
             </span>
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-t4">
+
+          <div className="flex shrink-0 items-center gap-2 text-[11px]">
             {loading ? (
-              <span>加载中…</span>
+              <span className="hidden items-center gap-1.5 text-t4 sm:inline-flex">
+                <span className="status-live h-1.5 w-1.5 rounded-full bg-accent-sky" aria-hidden="true" />
+                加载中…
+              </span>
             ) : (
               <>
-                <span className="hidden sm:inline">{rides.length} 条记录</span>
+                <span className="tnum hidden text-t4 sm:inline">{rides.length} 条记录</span>
+                {/* 同步状态胶囊：颜色即语义（绿=已同步 / 琥珀=离线只读 / 蓝=同步中），圆点呼吸提示"活着" */}
                 <span
-                  className="hidden rounded-full border border-line bg-fill px-2 py-0.5 sm:inline"
+                  className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 sm:inline-flex ${
+                    syncState === 'cloud'
+                      ? 'border-accent-emerald/30 bg-accent-emerald/10 text-accent-emerald-text'
+                      : syncState === 'cache'
+                        ? 'border-accent-amber/30 bg-accent-amber/10 text-accent-amber-text'
+                        : 'border-line bg-fill text-t4'
+                  }`}
                   title={
                     syncState === 'cloud'
                       ? '数据已与服务器同步'
@@ -399,22 +461,42 @@ export default function Dashboard() {
                         : '正在同步…'
                   }
                 >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      syncState === 'cloud'
+                        ? 'status-live bg-accent-emerald'
+                        : syncState === 'cache'
+                          ? 'bg-accent-amber'
+                          : 'status-live bg-accent-sky'
+                    }`}
+                    aria-hidden="true"
+                  />
                   {syncState === 'cloud' ? '已同步' : syncState === 'cache' ? '离线・只读' : '同步中…'}
                 </span>
               </>
             )}
+
+            {/* 元信息与操作之间放一条细分隔线，让"状态"和"按钮"两组控件各归各的 */}
+            <span className="hidden h-4 w-px bg-line sm:inline-block" aria-hidden="true" />
+
             {/* 明暗(昼夜)切换 */}
             <button
               type="button"
               onClick={toggleTheme}
               title={theme === 'dark' ? '切换到日间（浅色）模式' : '切换到夜间（深色）模式'}
               aria-label={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
-              className="flex items-center gap-1 rounded-full border border-line bg-fill px-2.5 py-1 text-t2 transition hover:bg-fill-strong"
+              className="group flex items-center gap-1 rounded-full border border-line bg-fill px-2.5 py-1 text-t2 transition hover:border-accent-sky/40 hover:bg-fill-strong active:scale-95"
             >
               {theme === 'dark' ? (
-                <Sun className="h-3.5 w-3.5 text-accent-amber" aria-hidden="true" />
+                <Sun
+                  className="h-3.5 w-3.5 text-accent-amber transition-transform group-hover:rotate-45"
+                  aria-hidden="true"
+                />
               ) : (
-                <Moon className="h-3.5 w-3.5 text-accent-sky" aria-hidden="true" />
+                <Moon
+                  className="h-3.5 w-3.5 text-accent-sky transition-transform group-hover:-rotate-12"
+                  aria-hidden="true"
+                />
               )}
               <span className="hidden sm:inline">{theme === 'dark' ? '日间' : '夜间'}</span>
             </button>
@@ -422,8 +504,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 分页导航:把长页面拆成三块,每屏只显示相关内容;与 URL hash 同步 */}
-        <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 md:px-6" role="tablist">
+        {/* 分页导航:把长页面拆成三块,每屏只显示相关内容;与 URL hash 同步。
+            激活态由一条滑动的渐变指示条标出（位置在 useLayoutEffect 里测量，见上） */}
+        <nav ref={navRef} className="relative mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 md:px-6" role="tablist">
           {visibleTabs.map((t) => {
             const active = tab === t.id
             return (
@@ -431,30 +514,44 @@ export default function Dashboard() {
                 key={t.id}
                 type="button"
                 role="tab"
+                data-tab={t.id}
                 aria-selected={active}
                 onClick={() => navigate(t.id)}
-                className={`relative whitespace-nowrap rounded-t-lg px-4 py-2 text-sm transition ${
-                  active ? 'font-medium text-accent-sky-text' : 'text-t3 hover:text-t1'
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-t-lg px-4 py-2.5 text-sm transition-colors ${
+                  active
+                    ? 'font-medium text-accent-sky-text'
+                    : 'text-t3 hover:bg-fill hover:text-t1 active:bg-fill-strong'
                 }`}
               >
                 {t.label}
                 {t.id === 'dashboard' && rides.length > 0 && (
-                  <span className="ml-1.5 rounded-full bg-fill-strong px-1.5 py-0.5 text-[10px] text-t3">
+                  <span
+                    className={`tnum rounded-full px-1.5 py-0.5 text-[10px] transition-colors ${
+                      active ? 'bg-accent-sky/15 text-accent-sky-text' : 'bg-fill-strong text-t4'
+                    }`}
+                  >
                     {rides.length}
                   </span>
                 )}
                 {t.id === 'bikes' && tireAlert && (
                   <span
-                    className={`ml-1.5 inline-block h-1.5 w-1.5 rounded-full ${
+                    className={`inline-block h-1.5 w-1.5 rounded-full ${
                       tireAlert === 'expired' ? 'bg-accent-red' : 'bg-accent-amber'
                     }`}
                     title={tireAlert === 'expired' ? '有外胎超过建议寿命' : '有外胎接近寿命'}
                   />
                 )}
-                {active && <span className="tab-glow absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent-sky" />}
               </button>
             )
           })}
+          {/* 滑动指示条：transform 驱动，切换页签平滑滑动；首帧不加过渡 */}
+          {indicator && (
+            <span
+              className={`tab-indicator${indicatorReady ? ' tab-indicator-anim' : ''}`}
+              style={{ transform: `translateX(${indicator.left}px)`, width: indicator.width }}
+              aria-hidden="true"
+            />
+          )}
         </nav>
       </header>
 

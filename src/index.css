@@ -184,6 +184,31 @@ body {
   background: var(--card-bg);
   padding: 1.25rem;
   box-shadow: var(--card-shadow);
+  transition:
+    border-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+
+/* 可点击的卡片(列表项、入口卡):悬停轻微抬升 + 描边点亮,按下回弹。
+   只用 transform/颜色,不改变尺寸 —— 相邻内容不会被顶开(§4 state-clarity)。 */
+.card-interactive {
+  cursor: pointer;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--c-sky-rgb) / 0.35);
+  box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.35);
+}
+.card-interactive:active {
+  transform: translateY(0) scale(0.995);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card-interactive {
+    transition:
+      transform var(--dur-2) var(--ease-out),
+      border-color var(--dur-2) var(--ease-out),
+      box-shadow var(--dur-2) var(--ease-out);
+  }
 }
 
 .card-title {
@@ -214,7 +239,13 @@ body {
   font-size: 0.875rem;
   color: var(--t1);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out);
+}
+.field-input:hover:not(:disabled) {
+  border-color: var(--fill-strong);
 }
 .field-input::placeholder {
   color: var(--t5);
@@ -222,6 +253,11 @@ body {
 .field-input:focus {
   border-color: rgb(var(--c-sky-rgb) / 0.6);
   box-shadow: 0 0 0 2px rgb(var(--c-sky-rgb) / 0.2);
+}
+/* 校验失败(组件设 aria-invalid 时生效):描边转成危险色,与错误文案形成双重提示,
+   而不是只靠颜色 —— 文案本身也会说明原因(§8 error-placement) */
+.field-input[aria-invalid='true'] {
+  border-color: rgb(var(--c-red-rgb) / 0.6);
 }
 
 /* 按钮基类:所有变体共用(字号/字重/圆角/内边距一致,避免不同按钮字体不一样) */
@@ -239,7 +275,38 @@ body {
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 500;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
+}
+/* 按下时轻微缩放:给点击一个"手感",且不影响布局尺寸 */
+.btn:active:not(:disabled),
+.btn-primary:active:not(:disabled),
+.btn-ghost:active:not(:disabled),
+.btn-danger:active:not(:disabled),
+.btn-solid-sky:active:not(:disabled),
+.btn-solid-emerald:active:not(:disabled),
+.btn-solid-amber:active:not(:disabled),
+.btn-solid-neutral:active:not(:disabled) {
+  transform: scale(0.98);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .btn,
+  .btn-primary,
+  .btn-ghost,
+  .btn-danger,
+  .btn-solid-sky,
+  .btn-solid-emerald,
+  .btn-solid-amber,
+  .btn-solid-neutral {
+    transition:
+      background-color var(--dur-1) var(--ease-out),
+      border-color var(--dur-1) var(--ease-out),
+      color var(--dur-1) var(--ease-out),
+      transform var(--dur-1) var(--ease-out);
+  }
 }
 .btn:disabled,
 .btn-primary:disabled,
@@ -305,6 +372,107 @@ body {
 }
 .btn-solid-neutral:hover:not(:disabled) {
   background: var(--solid-neutral-bg-hover);
+}
+
+/* ============ 动效 token ============
+   分三档而不是"一个 0.2s 走天下"（ui-ux-pro-max §7 duration-timing）：
+   - --dur-1 即时反馈：按下、勾选、hover —— 必须立刻有回应
+   - --dur-2 状态转换：展开、切换、颜色变化
+   - --dur-3 入场：弹窗、面板出现（退场用 60~70% 的时长，见 --dur-exit）
+   缓动：到达减速（--ease-out）、往返对称（--ease-in-out）。 */
+:root {
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 260ms;
+  --dur-exit: 160ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 键盘焦点环：只在键盘导航时出现（:focus-visible），不干扰鼠标点击。
+   2px 环 + 2px 偏移，两套主题下都保持可见（WCAG 2.2 focus-appearance）。 */
+:where(a, button, [role='button'], [role='menuitem'], [role='tab'], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--c-sky-rgb) / 0.9);
+  outline-offset: 2px;
+}
+
+/* 跳到主内容：键盘用户按 Tab 的第一个落点 */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -4rem;
+  z-index: 60;
+  border-radius: 0.5rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--t1);
+  transition: top var(--dur-2) var(--ease-out);
+}
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+/* 数字用等宽字形：数据列、评分、统计数字不会因字宽变化而抖动（§6 number-tabular） */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* 入场动效：列表/卡片出现时轻微上浮，比"啪一下出现"更自然。
+   只位移 4px 且只影响 opacity/transform，不触发布局回流（§7 layout-shift-avoid）。 */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-rise {
+  animation: rise-in var(--dur-3) var(--ease-out) both;
+}
+
+/* 减弱动效：系统设置里开启后，全部动画降到近乎瞬时（§1 reduced-motion） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 触控目标：指针为粗粒度（手机/平板）时把可点元素撑到 44px 高（§2 touch-target-size）。
+   桌面保持紧凑，不牺牲信息密度。 */
+@media (pointer: coarse) {
+  .btn,
+  .btn-primary,
+  .btn-ghost,
+  .btn-danger,
+  .btn-solid-sky,
+  .btn-solid-emerald,
+  .btn-solid-amber,
+  .btn-solid-neutral {
+    min-height: 44px;
+  }
+  .field-input {
+    min-height: 44px;
+  }
+}
+
+/* 细节：细滚动条 + 主题化选中色，避免默认样式在深色下刺眼 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--fill-strong) transparent;
+}
+::selection {
+  background: rgb(var(--c-sky-rgb) / 0.28);
 }
 
 /* ============ 图表配色(SVG 用 class 而非属性,才能跟随主题)

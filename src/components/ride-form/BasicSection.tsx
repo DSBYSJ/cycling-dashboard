@@ -1,3 +1,4 @@
+import { AlertTriangle, ClipboardList } from 'lucide-react'
 import { BIKE_CATEGORIES } from '../../types'
 import { CITIES } from '../../data/cities'
 import type { BikeWithStatus } from '../../utils/tire'
@@ -61,7 +62,10 @@ export default function BasicSection({
 }: Props) {
   return (
     <section>
-      <h3 className="card-title">📋 基本信息</h3>
+      <h3 className="card-title">
+        <ClipboardList className="h-4 w-4 text-accent-sky-text" aria-hidden="true" />
+        基本信息
+      </h3>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <div>
           <label className="field-label">骑行日期 *</label>
@@ -172,10 +176,13 @@ export default function BasicSection({
 
       {/* 外胎寿命提醒:选中该车时立即提示,避免保存后才发现 */}
       {selectedBike?.tire?.level === 'expired' && (
-        <p className="mt-2 rounded-lg border border-accent-red/30 bg-accent-red/10 px-3 py-2 text-xs leading-5 text-accent-red-text">
-          ⚠ 单车「{selectedBike.name}」的{selectedBike.tire.tireName}已超过建议使用寿命(已骑{' '}
-          {Math.round(selectedBike.tire.usedKm)} km / 建议 {selectedBike.tire.lifeKm} km,超期{' '}
-          {Math.round(Math.abs(selectedBike.tire.remainingKm))} km),请注意检查外胎状态，及时更换。
+        <p className="mt-2 flex gap-2 rounded-lg border border-accent-red/30 bg-accent-red/10 px-3 py-2 text-xs leading-5 text-accent-red-text">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            单车「{selectedBike.name}」的{selectedBike.tire.tireName}已超过建议使用寿命(已骑{' '}
+            {Math.round(selectedBike.tire.usedKm)} km / 建议 {selectedBike.tire.lifeKm} km,超期{' '}
+            {Math.round(Math.abs(selectedBike.tire.remainingKm))} km),请注意检查外胎状态，及时更换。
+          </span>
         </p>
       )}
       {selectedBike?.tire?.level === 'soon' && (

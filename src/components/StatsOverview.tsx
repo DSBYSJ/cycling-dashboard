@@ -123,7 +123,7 @@ function StatsOverview({ rides }: Props) {
 function Metric({ value, unit, label, accent }: { value: number | string; unit: string; label: string; accent?: boolean }) {
   return (
     <div className="text-center">
-      <div className={`text-base font-semibold ${accent ? 'text-accent-emerald' : 'text-t1'}`}>
+      <div className={`tnum text-base font-semibold ${accent ? 'text-accent-emerald' : 'text-t1'}`}>
         {value}
         {unit && <span className="ml-0.5 text-[10px] font-normal text-t4">{unit}</span>}
       </div>

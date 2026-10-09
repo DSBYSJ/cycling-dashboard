@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { CalendarCheck } from 'lucide-react'
 import type { RideRecord } from '../types'
 import type { BikeWithStatus } from '../utils/tire'
 import HuaweiSyncButton from './HuaweiSyncButton'
@@ -34,7 +35,10 @@ export default function RideForm({ initialRecord, onSave, onCancelEdit, bikes = 
       {/* 今日打卡(嵌入表单最上方,打卡与详细录入二选一) */}
       {checkInSlot && (
         <section>
-          <h3 className="card-title">✅ 今天骑了吗</h3>
+          <h3 className="card-title">
+            <CalendarCheck className="h-4 w-4 text-accent-emerald-text" aria-hidden="true" />
+            今天骑了吗
+          </h3>
           {checkInSlot}
           <div className="mt-4 flex items-center gap-3">
             <span className="h-px flex-1 bg-fill-strong" aria-hidden="true" />

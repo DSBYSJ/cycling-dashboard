@@ -36,7 +36,7 @@ function ScoreCard({ record }: { record: RideRecord }) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-3xl font-bold ${scoreColor}`}>{scores.total}</span>
+            <span className={`tnum text-3xl font-bold ${scoreColor}`}>{scores.total}</span>
             <span className="text-[10px] text-t4">综合评分</span>
           </div>
         </div>

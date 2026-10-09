@@ -1,4 +1,4 @@
-import { AlertTriangle, Bot, Loader2, RefreshCw, Target } from 'lucide-react'
+import { AlertTriangle, Bot, Check, Loader2, RefreshCw, Target } from 'lucide-react'
 import type { RideRecord } from '../types'
 import { useAuth } from '../hooks/useAuth'
 import { useCoachReview } from '../hooks/useCoachReview'
@@ -119,9 +119,7 @@ export default function CoachReviewCard({ record, rides, onSelectRide }: Props) 
               <ul className="space-y-1.5">
                 {review.highlights.map((item, i) => (
                   <li key={i} className="flex gap-2 text-xs leading-5 text-t3">
-                    <span className="text-accent-emerald-text" aria-hidden="true">
-                      ✓
-                    </span>
+                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-emerald-text" aria-hidden="true" />
                     <span>{item}</span>
                   </li>
                 ))}

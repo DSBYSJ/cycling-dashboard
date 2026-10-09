@@ -49,9 +49,7 @@ export default function AboutPage() {
         </div>
 
         <header className="text-center">
-          <span className="text-3xl" aria-hidden="true">
-            🚴
-          </span>
+          <Bike className="mx-auto h-8 w-8 text-accent-sky-text" aria-hidden="true" />
           <h1 className="mt-2 text-lg font-bold tracking-wide text-t1">骑行评分监测看板</h1>
           <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-t4">{SITE_TAGLINE}</p>
           <a href={APP_ENTRY} className="btn-primary mt-5">

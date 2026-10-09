@@ -116,7 +116,7 @@ function HistoryList({ rides, bikes, selectedId, onSelect, onEdit, onDelete, onR
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="tnum w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-t4">
                 <th className="px-3 py-2 font-medium">路线</th>

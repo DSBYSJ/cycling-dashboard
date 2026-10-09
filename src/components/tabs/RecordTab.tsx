@@ -1,4 +1,4 @@
-import { Bike as BikeIcon, MapPin } from 'lucide-react'
+import { BarChart3, Bike as BikeIcon, MapPin, Pencil, Plus } from 'lucide-react'
 import type { DayCheckIn, RideRecord } from '../../types'
 import type { BikeWithStatus } from '../../utils/tire'
 import RideForm from '../RideForm'
@@ -48,7 +48,12 @@ export default function RecordTab({
     <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-12">
       <section className="card xl:col-span-7">
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">
-          {editing ? '✏️ 编辑骑行记录' : '➕ 记录一次骑行'}
+          {editing ? (
+            <Pencil className="h-4 w-4 text-accent-amber-text" aria-hidden="true" />
+          ) : (
+            <Plus className="h-4 w-4 text-accent-sky-text" aria-hidden="true" />
+          )}
+          {editing ? '编辑骑行记录' : '记录一次骑行'}
           {editing && (
             <button
               type="button"
@@ -84,7 +89,10 @@ export default function RecordTab({
       <div className="space-y-5 xl:col-span-5">
         <section className="card">
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold tracking-wide text-t2">
-            <span>📊 本次评分{selected ? ` · ${selected.date}` : ''}</span>
+            <span className="flex items-center gap-1.5">
+              <BarChart3 className="h-4 w-4 text-accent-sky-text" aria-hidden="true" />
+              本次评分{selected ? ` · ${selected.date}` : ''}
+            </span>
             {selected?.routeName && <span className="text-xs font-normal text-t3">路线：{selected.routeName}</span>}
             {selectedBikeName && (
               <span className="flex items-center gap-1 text-xs font-normal text-accent-sky-text">
@@ -107,7 +115,7 @@ export default function RecordTab({
             <ScoreCard record={selected} />
           ) : (
             <div className="flex h-40 flex-col items-center justify-center gap-2 text-sm text-t4">
-              <span className="text-3xl">🚴‍♂️</span>
+              <BikeIcon className="h-8 w-8 text-t5" aria-hidden="true" />
               <p>还没有骑行记录</p>
               <p className="text-xs">在左侧录入数据、导入 GPX 或绘制路线后保存，即可看到评分</p>
             </div>

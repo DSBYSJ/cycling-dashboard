@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Bike } from 'lucide-react'
 import AboutPage from './components/AboutPage'
 import AuthPage from './components/auth/AuthPage'
 import Dashboard from './components/Dashboard'
@@ -44,9 +45,7 @@ function BootScreen() {
   return (
     <div className="flex min-h-full items-center justify-center bg-page">
       <div className="flex flex-col items-center gap-2 text-t4" role="status" aria-live="polite">
-        <span className="text-2xl" aria-hidden="true">
-          🚴
-        </span>
+        <Bike className="h-6 w-6" aria-hidden="true" />
         <span className="text-xs">正在连接服务器…</span>
       </div>
     </div>

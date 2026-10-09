@@ -1,3 +1,4 @@
+import { FolderOpen, Map as MapIcon, Mountain, Target, TrendingUp, Zap } from 'lucide-react'
 import type { Bike, DayCheckIn, RideRecord } from '../../types'
 import type { BikeWithStatus } from '../../utils/tire'
 import type { ImportSummary } from '../../utils/backup'
@@ -48,7 +49,8 @@ export default function DashboardTab({
 
       <section className="card">
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">
-          📈 评分趋势（最近 10 次）
+          <TrendingUp className="h-4 w-4 text-accent-sky-text" aria-hidden="true" />
+          评分趋势（最近 10 次）
         </div>
         <TrendChart rides={rides} />
       </section>
@@ -58,13 +60,17 @@ export default function DashboardTab({
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <section className="card">
               <div className="mb-4 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">
-                ⚡ 速度曲线
+                <Zap className="h-4 w-4 text-accent-amber-text" aria-hidden="true" />
+                速度曲线
                 <span className="text-xs font-normal text-t4">{selected.date}</span>
               </div>
               <SpeedChart data={selected.speedSeries} />
             </section>
             <section className="card">
-              <div className="mb-4 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">⛰️ 海拔曲线</div>
+              <div className="mb-4 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">
+                <Mountain className="h-4 w-4 text-accent-amber-text" aria-hidden="true" />
+                海拔曲线
+              </div>
               <ElevationChart track={selected.track} />
             </section>
           </div>
@@ -74,7 +80,8 @@ export default function DashboardTab({
             {selected.track.length >= 2 && (
               <section className="card">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">
-                  🗺️ 骑行轨迹 · {selected.date}
+                  <MapIcon className="h-4 w-4 text-accent-sky-text" aria-hidden="true" />
+                  骑行轨迹 · {selected.date}
                 </div>
                 <MapView track={selected.track} />
               </section>
@@ -83,7 +90,8 @@ export default function DashboardTab({
             {selected.scores && (
               <section className="card">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold tracking-wide text-t2">
-                  🎯 评分雷达
+                  <Target className="h-4 w-4 text-accent-emerald-text" aria-hidden="true" />
+                  评分雷达
                   <span className="text-xs font-normal text-t4">
                     天气 {selected.scores.weather} · 路线 {selected.scores.route}
                   </span>
@@ -107,7 +115,8 @@ export default function DashboardTab({
       {/* 历史记录(并入看板):筛选、编辑、重命名、导出 */}
       <section className="card">
         <div className="mb-4 flex flex-wrap items-center gap-2 text-sm font-semibold tracking-wide text-t2">
-          <span>🗂️ 历史记录</span>
+          <FolderOpen className="h-4 w-4 text-accent-sky-text" aria-hidden="true" />
+          <span>历史记录</span>
           {rides.length > 0 && <span className="text-xs font-normal text-t4">共 {rides.length} 条</span>}
         </div>
         <HistoryList

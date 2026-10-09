@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Eye, EyeOff, Moon, ShieldCheck, Sun } from 'lucide-react'
+import { Bike, Eye, EyeOff, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { api } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
@@ -142,9 +142,7 @@ export default function AuthPage() {
 
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <span className="text-3xl" aria-hidden="true">
-            🚴
-          </span>
+          <Bike className="mx-auto h-8 w-8 text-accent-sky-text" aria-hidden="true" />
           <h1 className="mt-2 text-lg font-bold tracking-wide text-t1">骑行评分监测看板</h1>
           <p className="mt-1 text-xs leading-5 text-t4">登录后骑行数据存在你自己的服务器上，换设备也能看到</p>
         </div>

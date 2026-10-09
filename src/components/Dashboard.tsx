@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Moon, Sun, WifiOff } from 'lucide-react'
+import { Bike as BikeIcon, Moon, Sun, WifiOff } from 'lucide-react'
 import type { Bike, RideRecord } from '../types'
 import { useRides, useBikes, useDays, type SyncState } from '../hooks/useCloudData'
 import { useLegacyMigration } from '../hooks/useLegacyMigration'
@@ -364,11 +364,16 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-full">
+      {/* 键盘用户的第一个落点：按 Tab 出现，回车直达主内容（跳过顶栏与分页导航） */}
+      <a href="#main" className="skip-link">
+        跳到主要内容
+      </a>
+
       {/* 顶栏 */}
       <header className="sticky top-0 z-20 border-b border-line bg-page/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
           <div className="flex items-center gap-2.5">
-            <span className="text-xl">🚴</span>
+            <BikeIcon className="h-5 w-5 text-accent-sky-text" aria-hidden="true" />
             <h1 className="text-base font-bold tracking-wide text-t1">骑行评分监测看板</h1>
             <span className="hidden rounded-full border border-accent-sky/30 bg-accent-sky/10 px-2 py-0.5 text-[10px] text-accent-sky-text sm:inline">
               天气 60% · 路线 40%
@@ -449,7 +454,7 @@ export default function Dashboard() {
         </nav>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 md:px-6">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-7xl space-y-5 px-4 py-6 md:px-6">
         {/* 离线提示：说明现在的数据是缓存副本、改动存不进去 */}
         {syncState === 'cache' && (
           <div className={BANNER_OFFLINE} role="status">
@@ -491,7 +496,9 @@ export default function Dashboard() {
         )}
 
         <Suspense fallback={<TabFallback />}>
-          {tab === 'record' && (
+          {/* key={tab} 让切换分页时重新触发入场动效：轻微上浮比"啪一下换掉"更有空间感 */}
+          <div key={tab} className="animate-rise space-y-5">
+            {tab === 'record' && (
             <RecordTab
               rides={rides}
               bikes={bikes}
@@ -529,6 +536,7 @@ export default function Dashboard() {
           {tab === 'bikes' && <BikesTab bikes={bikes} onSave={handleSaveBike} onRemove={handleRemoveBike} />}
 
           {tab === 'admin' && isAdmin && <AdminTab />}
+          </div>
         </Suspense>
 
         <footer className="space-y-2 pb-6 text-center text-[11px] text-t4">

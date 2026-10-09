@@ -1,3 +1,4 @@
+import { Route } from 'lucide-react'
 import { SURFACE_LABELS, TRAFFIC_LABELS, type SurfaceType, type TrafficLevel } from '../../types'
 import { numOrEmpty, type RideFormModel } from './useRideForm'
 
@@ -19,7 +20,10 @@ export default function RouteAttrSection({
 }: Props) {
   return (
     <section>
-      <h3 className="card-title">🛣️ 路线属性</h3>
+      <h3 className="card-title">
+        <Route className="h-4 w-4 text-accent-sky-text" aria-hidden="true" />
+        路线属性
+      </h3>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div>
           <label className="field-label">累计爬升（m）</label>

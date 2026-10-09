@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { Map as MapIcon } from 'lucide-react'
 import MapView from '../MapView'
 import RoutePlanner from '../RoutePlanner'
 import type { RideFormModel } from './useRideForm'
@@ -53,7 +54,10 @@ export default function RouteSection({
 
   return (
     <section>
-      <h3 className="card-title">🗺️ 路线（自动规划 / GPX 导入 / 地图绘制）</h3>
+      <h3 className="card-title">
+        <MapIcon className="h-4 w-4 text-accent-sky-text" aria-hidden="true" />
+        路线（自动规划 / GPX 导入 / 地图绘制）
+      </h3>
 
       <RoutePlanner
         city={cityName}

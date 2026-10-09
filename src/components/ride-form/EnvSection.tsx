@@ -1,3 +1,4 @@
+import { CloudSun } from 'lucide-react'
 import type { EnvData } from '../../types'
 import { numOrEmpty, type RideFormModel } from './useRideForm'
 
@@ -25,7 +26,10 @@ export default function EnvSection({ env, envMeta, envLoading, handleFetchEnv, s
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="card-title mb-0">🌦️ 环境数据（自动采集，可手动修正）</h3>
+        <h3 className="card-title mb-0">
+          <CloudSun className="h-4 w-4 text-accent-sky-text" aria-hidden="true" />
+          环境数据（自动采集，可手动修正）
+        </h3>
         <button type="button" className="btn-primary" disabled={envLoading} onClick={() => void handleFetchEnv()}>
           {envLoading ? '采集中…' : '获取环境数据'}
         </button>

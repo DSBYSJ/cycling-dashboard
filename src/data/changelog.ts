@@ -22,6 +22,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.5',
+    date: '2026-10-09',
+    groups: [
+      {
+        title: '视觉',
+        items: [
+          '日间模式的氛围明显加强：浅色底很「吃」对比度，所以光斑与网格是重新标定的一套值（色相更深、透明度更高），而不是把夜间参数调淡',
+          '日间模式下卡片改为半透明，底层氛围能微微透出来，不再是一整片纯白',
+          '卡片顶部高光在日间模式改用淡彩线 —— 白色的线画在白卡片上等于没画',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.4',
     date: '2026-10-09',
     groups: [

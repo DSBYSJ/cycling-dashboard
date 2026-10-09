@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { KeyRound, LogOut, ShieldCheck, User } from 'lucide-react'
+import { Compass, KeyRound, LogOut, ShieldCheck, User } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 
 /** 与后端 auth/password.ts 的 PASSWORD_MIN_LENGTH 保持一致 */
@@ -137,6 +137,15 @@ export default function AccountMenu({ onOpenAdmin }: { onOpenAdmin?: () => void 
                   站长控制台
                 </button>
               )}
+              <a
+                href="#/about"
+                role="menuitem"
+                onClick={close}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-t2 transition hover:bg-fill"
+              >
+                <Compass className="h-3.5 w-3.5" aria-hidden="true" />
+                了解本站
+              </a>
               <button
                 type="button"
                 role="menuitem"

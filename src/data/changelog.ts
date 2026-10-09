@@ -22,6 +22,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.7',
+    date: '2026-10-10',
+    groups: [
+      {
+        title: '界面',
+        items: [
+          '「了解本站」入口更醒目：从页脚的信息堆里独立出来，做成带图标与箭头的胶囊按钮（悬停有色彩反馈）—— 它是个「导览入口」，不该和备案号挤在一起',
+          '登录后的账号菜单里也加了「了解本站」入口，随时能回看项目介绍',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.6',
     date: '2026-10-09',
     groups: [

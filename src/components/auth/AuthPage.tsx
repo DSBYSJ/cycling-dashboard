@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Bike, Eye, EyeOff, Moon, ShieldCheck, Sun } from 'lucide-react'
+import { ArrowRight, Bike, Compass, Eye, EyeOff, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { api } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
@@ -281,6 +281,23 @@ export default function AuthPage() {
           </p>
         </div>
 
+        {/* 公开页入口：它是「导览」而不是「元信息」，所以从页脚信息堆里独立出来，
+            做成有边框、有图标的胶囊按钮 —— 比夹在备案号中间的那行淡字显眼得多。
+            图标 + 箭头给出方向感；箭头在悬停时右移，暗示「点进去看」。 */}
+        <div className="mt-6 text-center">
+          <a
+            href="#/about"
+            className="group inline-flex items-center gap-1.5 rounded-full border border-line bg-fill px-4 py-2 text-xs text-t2 transition hover:border-accent-sky/60 hover:bg-accent-sky/10 hover:text-accent-sky-text"
+          >
+            <Compass className="h-3.5 w-3.5 text-accent-sky-text" aria-hidden="true" />
+            了解本站 · 功能与技术
+            <ArrowRight
+              className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
+          </a>
+        </div>
+
         <footer className="mt-5 space-y-2.5 text-center text-[11px] leading-5 text-t5">
           {/* 安全说明：整块居中（mx-auto），文字左对齐让两行对齐。
               之前用 flex + justify-center 逐段堆叠，图标会占位导致文字轴线与下方各行
@@ -288,13 +305,6 @@ export default function AuthPage() {
           <p className="mx-auto flex max-w-[19rem] items-start gap-1.5 text-left">
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>密码用 scrypt 加盐哈希，不存明文；登录态存在 httpOnly Cookie 里，网页脚本读不到</span>
-          </p>
-
-          {/* 公开页入口：没有账号的人也能看到这个项目做了什么、用了什么技术 */}
-          <p>
-            <a href="#/about" className="transition hover:text-t2">
-              了解本站 · 功能与技术
-            </a>
           </p>
 
           {/* 备案信息来自环境变量；未配置时整块不渲染 */}

@@ -22,6 +22,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.10',
+    date: '2026-10-10',
+    groups: [
+      {
+        title: '界面',
+        items: [
+          '「了解本站」滚动更顺滑：滚轮滚动带惯性、不再一顿一顿（触摸屏保持系统原生手感）',
+          '首屏标题改为两行大字，逐行从下缘滑入；向下滚动时首屏视差上浮、缓慢淡出，往回滚会自动退回',
+          '平滑滚动与滚动动效都跟随系统「减弱动效」设置整体关闭',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.9',
     date: '2026-10-10',
     groups: [

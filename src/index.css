@@ -470,6 +470,11 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  /* 逐行揭示用 `both` 填充 + 延迟，上面那条规则只压时长不压延迟会把文字
+     卡在"尚未入场"的隐藏态几百毫秒 —— 这里直接整条关掉，静态呈现 */
+  .hero-title-line {
+    animation: none !important;
+  }
 }
 
 /* 触控目标：指针为粗粒度（手机/平板）时把可点元素撑到 44px 高（§2 touch-target-size）。
@@ -890,18 +895,63 @@ html.theme-anim *::after {
   transform: none;
 }
 
-/* ---- Hero 标题：流动的渐变文字 ---- */
+/* ---- Hero 标题：流动的渐变文字 ----
+   注意：渐变本身与"逐行揭示"是两个 animation，必须写在同一条规则里（.hero-title-line），
+   否则后定义的 `animation` 简写会整体覆盖前一个。所以本类只负责渐变外观。 */
 .hero-gradient-text {
   background-image: var(--hero-grad);
   background-size: 220% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: gradient-pan 10s var(--ease-in-out) infinite alternate;
 }
 @keyframes gradient-pan {
   from { background-position: 0% 50%; }
   to { background-position: 100% 50%; }
+}
+
+/* ---- 逐行遮罩揭示（文字从裁切框下缘滑上来）----
+   .reveal-line 是遮罩框（overflow: hidden），内层负责位移；
+   padding-bottom + 负 margin 防止中文字形下缘被裁断。 */
+.reveal-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+.hero-title-line {
+  display: block;
+  animation:
+    line-up 860ms var(--ease-out) both,
+    gradient-pan 10s var(--ease-in-out) infinite alternate;
+  animation-delay: calc(var(--i, 0) * 140ms + 110ms), 0s;
+}
+@keyframes line-up {
+  from { transform: translateY(118%); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* ---- Hero 滚动退场（分段插值）----
+   --hero-p（0→1 原始进度）：全段缓慢视差上浮，元素比滚动"慢半拍"；
+   --hero-q（分段退出量，前 45% 为 0）：末段才淡出 + 微缩。
+   变量由 useScrollExit 写入；「减弱动效」下不注册，全部保持 0 即无效果。 */
+.hero-parallax {
+  transform: translate3d(0, calc(var(--hero-p, 0) * -46px), 0) scale(calc(1 - var(--hero-q, 0) * 0.05));
+  opacity: calc(1 - var(--hero-q, 0) * 1.06);
+}
+
+/* ---- 平滑滚动（Lenis）基础样式：与官方 lenis.css 对齐 ----
+   注：lenis-smooth / lenis-scrolling 是**滚动进行中的瞬态类**（lenis 1.3 起），
+   只作状态标记，不参与布局；这里只需 height 复位与 overflow 行为。 */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
 }
 
 /* ---- Hero 徽章：一枚"已上线"的状态胶囊 ---- */

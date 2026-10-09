@@ -1,4 +1,4 @@
-import { useCallback, useState, type CSSProperties } from 'react'
+import { useCallback, useRef, useState, type CSSProperties } from 'react'
 import {
   ArrowRight,
   Bike,
@@ -14,6 +14,8 @@ import {
 import { useTheme } from '../hooks/useTheme'
 import { useCountUp } from '../hooks/useCountUp'
 import { useReadingProgress, useRevealOnScroll } from '../hooks/useReveal'
+import { useScrollExit } from '../hooks/useScrollExit'
+import { useSmoothScroll } from '../hooks/useSmoothScroll'
 import { APP_VERSION } from '../version'
 import { PROJECT_STATS } from '../stats'
 import { AppVersion } from './AppVersion'
@@ -35,9 +37,11 @@ import {
  * 目的是让别人（比如招聘方、骑友）能直接看到这个项目做了什么、用了什么技术，
  * 而不必先有一个账号。内容全部来自 `data/about.ts`，合规声明与备案号也在这里展示。
  *
- * 视觉上这一页比应用内页更"张扬"（渐变标题、数据看板、滚动揭示），
+ * 视觉上这一页比应用内页更"张扬"（渐变标题、数据看板、滚动揭示、惯性滚动），
  * 因为它的任务就是留下印象；但性能约束不变：
  *  - 滚动揭示走 IntersectionObserver，不监听 scroll 做计算；
+ *  - hero 的滚动退场只写两个 CSS 变量（rAF 节流），插值全在 CSS 里完成；
+ *  - 平滑滚动（Lenis）动态加载、触摸屏不接管、「减弱动效」下不初始化；
  *  - 动效只碰 transform / opacity / background-position；
  *  - 数据看板的数字在构建时统计（见 vite.config.ts），不在页面上手写。
  */
@@ -51,7 +55,10 @@ const APP_ENTRY = '#/record'
 export default function AboutPage() {
   const { theme, toggle: toggleTheme } = useTheme()
   const [progress, setProgress] = useState(0)
+  const heroRef = useRef<HTMLElement | null>(null)
 
+  useSmoothScroll()
+  useScrollExit(heroRef)
   useRevealOnScroll()
   useReadingProgress(
     useCallback((ratio: number) => {
@@ -84,25 +91,42 @@ export default function AboutPage() {
           </button>
         </div>
 
-        {/* ================= Hero ================= */}
-        <header className="text-center">
+        {/* ================= Hero =================
+            整个 hero 挂着滚动退场：向下滚时视差上浮 + 末段淡出微缩，
+            向上滚原路退回（见 useScrollExit：只写 --hero-p / --hero-q，插值在 CSS） */}
+        <header ref={heroRef} className="hero-parallax text-center">
           <div data-reveal>
             <span className="hero-badge">已上线运行 · 全栈个人项目</span>
           </div>
 
-          <Bike className="mx-auto mt-5 h-10 w-10 text-accent-sky-text" aria-hidden="true" data-reveal />
-          <h1
-            className="hero-gradient-text mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-4xl"
+          <Bike
+            className="mx-auto mt-5 h-10 w-10 text-accent-sky-text"
+            aria-hidden="true"
             data-reveal
             style={{ '--i': 1 } as CSSProperties}
-          >
-            骑行评分监测看板
+          />
+          {/* 标题分两行 + 逐行遮罩上滑（reveal-line 是遮罩层，hero-title-line 是滑动层） */}
+          <h1 className="mt-3 text-4xl font-bold leading-[1.18] tracking-tight sm:text-5xl">
+            <span className="reveal-line">
+              <span className="hero-gradient-text hero-title-line" style={{ '--i': 0 } as CSSProperties}>
+                骑行评分
+              </span>
+            </span>
+            <span className="reveal-line">
+              <span className="hero-gradient-text hero-title-line" style={{ '--i': 1 } as CSSProperties}>
+                监测看板
+              </span>
+            </span>
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-xs leading-6 text-t4" data-reveal style={{ '--i': 2 } as CSSProperties}>
+          <p
+            className="mx-auto mt-4 max-w-md text-xs leading-6 text-t4"
+            data-reveal
+            style={{ '--i': 4 } as CSSProperties}
+          >
             {SITE_TAGLINE}
           </p>
 
-          <div className="mt-6" data-reveal style={{ '--i': 3 } as CSSProperties}>
+          <div className="mt-6" data-reveal style={{ '--i': 5 } as CSSProperties}>
             <a href={APP_ENTRY} className="btn-primary">
               进入应用
               <ArrowRight className="h-4 w-4" aria-hidden="true" />

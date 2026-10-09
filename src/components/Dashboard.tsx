@@ -52,9 +52,16 @@ function todayLocal(): string {
 }
 
 function TabFallback() {
+  // 骨架屏：比一行「正在加载…」更接近真实内容的轮廓，加载完切换时的跳动也更小
   return (
-    <div className="card flex h-40 items-center justify-center text-sm text-t4" role="status" aria-live="polite">
-      正在加载…
+    <div className="card space-y-4" role="status" aria-live="polite" aria-label="正在加载">
+      <div className="flex items-center gap-3">
+        <div className="skeleton h-9 w-9 bg-fill-strong" aria-hidden="true" />
+        <div className="skeleton h-4 w-44 max-w-[50%] bg-fill-strong" aria-hidden="true" />
+      </div>
+      <div className="skeleton h-3 w-full bg-fill-strong" aria-hidden="true" />
+      <div className="skeleton h-3 w-5/6 bg-fill-strong" aria-hidden="true" />
+      <div className="skeleton h-3 w-2/3 bg-fill-strong" aria-hidden="true" />
     </div>
   )
 }
@@ -482,7 +489,7 @@ export default function Dashboard() {
             {/* 明暗(昼夜)切换 */}
             <button
               type="button"
-              onClick={toggleTheme}
+              onClick={(e) => toggleTheme({ x: e.clientX, y: e.clientY })}
               title={theme === 'dark' ? '切换到日间（浅色）模式' : '切换到夜间（深色）模式'}
               aria-label={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
               className="group flex items-center gap-1 rounded-full border border-line bg-fill px-2.5 py-1 text-t2 transition hover:border-accent-sky/40 hover:bg-fill-strong active:scale-95"

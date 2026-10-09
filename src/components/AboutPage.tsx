@@ -79,7 +79,7 @@ export default function AboutPage() {
         <div className="mb-10 flex justify-end">
           <button
             type="button"
-            onClick={toggleTheme}
+            onClick={(e) => toggleTheme({ x: e.clientX, y: e.clientY })}
             title={theme === 'dark' ? '切换到日间（浅色）模式' : '切换到夜间（深色）模式'}
             aria-label={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
             className="flex items-center gap-1 rounded-full border border-line bg-fill px-2.5 py-1 text-[11px] text-t2 transition hover:bg-fill-strong"

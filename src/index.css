@@ -878,6 +878,98 @@ body {
   to { opacity: 1; transform: none; }
 }
 
+/* ============================================================
+   整体质感升级（2026-10-10 三改）：主题圆形揭示 / 开机屏 / 骨架屏
+   ============================================================ */
+
+/* ---- 主题切换的"圆形揭示"（View Transitions API）----
+   新旧两帧的快照由浏览器生成：新视图铺在最上层、用 clip-path 从点击处扩圆，
+   旧视图静态垫底。扩散动画由 useTheme 里的 WAAPI 驱动，
+   这里只需关掉默认的交叉淡入（否则会叠成双重过渡）。 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}
+
+/* ---- 开机屏（进入应用的第一眼）：一点"启动序列"的仪式感 ---- */
+.boot-screen {
+  animation: boot-in 560ms var(--ease-out) both;
+}
+@keyframes boot-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+/* 品牌方章 + 一道环绕的光弧（复用登录卡同款的 @property 角度动画，只是更快） */
+.boot-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgb(var(--c-sky-rgb) / 0.25);
+  background: linear-gradient(135deg, rgb(var(--c-sky-rgb) / 0.14), rgb(var(--c-emerald-rgb) / 0.1));
+  color: rgb(var(--c-sky-text-rgb));
+  box-shadow: 0 0 26px rgb(var(--c-sky-rgb) / 0.22);
+}
+.boot-mark::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 1.25rem;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--ring-angle, 0deg),
+    transparent 0deg,
+    rgb(var(--c-sky-rgb) / 0.9) 70deg,
+    rgb(var(--c-emerald-rgb) / 0.5) 110deg,
+    transparent 170deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: ring-rotate 1.5s linear infinite;
+  pointer-events: none;
+}
+/* 提示文字：一道微光横向扫过 */
+.boot-text {
+  background: linear-gradient(90deg, var(--t4) 30%, var(--t1) 50%, var(--t4) 70%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: boot-shimmer 1.9s linear infinite;
+}
+@keyframes boot-shimmer {
+  from { background-position: 130% 0; }
+  to { background-position: -30% 0; }
+}
+
+/* ---- 懒加载骨架屏：微光扫过，代替"正在加载…"的干等 ---- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(var(--c-sky-rgb) / 0.09), transparent);
+  animation: skeleton-sweep 1.7s var(--ease-in-out) infinite;
+}
+@keyframes skeleton-sweep {
+  to { transform: translateX(100%); }
+}
+
 /* ---- 列表入场：逐项错峰（--i 由组件写入）---- */
 .stagger-in {
   animation: rise-in var(--dur-3) var(--ease-out) both;

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { ArrowRight, Bike, Compass, Eye, EyeOff, Moon, ShieldCheck, Sun } from 'lucide-react'
 import ParticleField from '../ParticleField'
 import { api } from '../../api/client'
 import { useAuth } from '../../hooks/useAuth'
+import { useRevealOnScroll } from '../../hooks/useReveal'
 import { useTheme } from '../../hooks/useTheme'
 import { AppVersion } from '../AppVersion'
 import { HAS_FILING, FilingRecords } from '../FilingRecords'
@@ -35,6 +36,9 @@ const BANNER_NOTICE =
 export default function AuthPage() {
   const { login, register, error, notice, submitting, clearError } = useAuth()
   const { theme, toggle: toggleTheme } = useTheme()
+  // 入场编排：标题 → 卡片 → 导览入口 → 页脚依次浮现（复用展示页的滚动揭示机制，
+  // 这里元素都在首屏，效果是"依次入场"；「减弱动效」下由 hook 直接置为可见）
+  useRevealOnScroll()
 
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
@@ -132,7 +136,7 @@ export default function AuthPage() {
 
       <button
         type="button"
-        onClick={toggleTheme}
+        onClick={(e) => toggleTheme({ x: e.clientX, y: e.clientY })}
         title={theme === 'dark' ? '切换到日间（浅色）模式' : '切换到夜间（深色）模式'}
         aria-label={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
         className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-line bg-fill px-2.5 py-1 text-[11px] text-t2 transition hover:bg-fill-strong"
@@ -146,13 +150,13 @@ export default function AuthPage() {
       </button>
 
       <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
+        <div className="mb-6 text-center" data-reveal style={{ '--i': 0 } as CSSProperties}>
           <Bike className="mx-auto h-8 w-8 text-accent-sky-text" aria-hidden="true" />
           <h1 className="mt-2 text-lg font-bold tracking-wide text-t1">骑行评分监测看板</h1>
           <p className="mt-1 text-xs leading-5 text-t4">登录后骑行数据存在你自己的服务器上，换设备也能看到</p>
         </div>
 
-        <div className="card p-5">
+        <div className="card p-5" data-reveal style={{ '--i': 1 } as CSSProperties}>
           {/* 描边上缓慢环绕的彩光（@property + conic-gradient，不支持的浏览器退回静态边） */}
           <span className="glow-ring" aria-hidden="true" />
           <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg border border-line bg-fill p-1" role="tablist">
@@ -291,7 +295,7 @@ export default function AuthPage() {
         {/* 公开页入口：它是「导览」而不是「元信息」，所以从页脚信息堆里独立出来，
             做成有边框、有图标的胶囊按钮 —— 比夹在备案号中间的那行淡字显眼得多。
             图标 + 箭头给出方向感；箭头在悬停时右移，暗示「点进去看」。 */}
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center" data-reveal style={{ '--i': 2 } as CSSProperties}>
           <a
             href="#/about"
             className="group inline-flex items-center gap-1.5 rounded-full border border-line bg-fill px-4 py-2 text-xs text-t2 transition hover:border-accent-sky/60 hover:bg-accent-sky/10 hover:text-accent-sky-text"
@@ -305,7 +309,7 @@ export default function AuthPage() {
           </a>
         </div>
 
-        <footer className="mt-5 space-y-2.5 text-center text-[11px] leading-5 text-t5">
+        <footer className="mt-5 space-y-2.5 text-center text-[11px] leading-5 text-t5" data-reveal style={{ '--i': 3 } as CSSProperties}>
           {/* 安全说明：整块居中（mx-auto），文字左对齐让两行对齐。
               之前用 flex + justify-center 逐段堆叠，图标会占位导致文字轴线与下方各行
               错开几个像素，看起来"不齐"；改成统一容器 + 一致间距后各块同一轴线。 */}

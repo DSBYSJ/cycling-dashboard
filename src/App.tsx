@@ -43,11 +43,14 @@ function useIsAboutRoute(): boolean {
 }
 
 function BootScreen() {
+  // 进入应用的第一眼：品牌方章 + 环绕光弧 + 微光扫过的提示文字（纯 CSS，不依赖接口）
   return (
     <div className="flex min-h-full items-center justify-center">
-      <div className="flex flex-col items-center gap-2 text-t4" role="status" aria-live="polite">
-        <Bike className="h-6 w-6" aria-hidden="true" />
-        <span className="text-xs">正在连接服务器…</span>
+      <div className="boot-screen flex flex-col items-center gap-4" role="status" aria-live="polite">
+        <span className="boot-mark" aria-hidden="true">
+          <Bike className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <span className="boot-text text-xs">正在连接服务器…</span>
       </div>
     </div>
   )

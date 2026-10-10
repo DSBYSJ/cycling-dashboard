@@ -230,6 +230,75 @@ export interface AiStats {
   completionTokens: number
 }
 
+/** 训练计划里的一段（热身 / 主课 / 放松…） */
+export interface PlanPhase {
+  /** 段落名，如「热身」「主课」「放松」 */
+  name: string
+  /** 该段时长（分钟） */
+  durationMin: number
+  /** 这一段具体怎么做（踏频/节奏/自感用力） */
+  detail: string
+}
+
+/**
+ * AI 训练计划：结合最近骑行数据与目标，规划当日 / 次日的骑行量。
+ *
+ * 与 CoachReview 同样是前后端共用模型：后端严格校验后才产出，前端直接渲染。
+ * 刻意不含「心率区间 / 功率」类指标 —— 现有数据里没有心率与功率，
+ * 计划里的强度用「速度区间 + 自感用力（RPE）」表达。
+ */
+export interface TrainingPlan {
+  /** 一句话概括这次安排 */
+  headline: string
+  /** 强度档位：恢复 / 轻松 / 耐力 / 节奏 / 阈值 / 间歇 */
+  intensity: string
+  /** 建议距离（km） */
+  distanceKm: number
+  /** 建议时长（分钟） */
+  durationMin: number
+  /** 目标均速区间，如 "24-27"（km/h） */
+  speedRange: string
+  /** 建议累计爬升（m）；没有爬坡目标时为 null */
+  elevationM: number | null
+  /** 分段安排，2-5 段 */
+  structure: PlanPhase[]
+  /** 为什么这么安排（依据最近数据），1-3 条 */
+  reasons: string[]
+  /** 注意事项，0-3 条 */
+  cautions: string[]
+}
+
+/** 生成训练计划的输入（用户的目标与约束） */
+export interface PlanRequest {
+  /** 目标 / 个人计划，如「下个月想完成百公里」 */
+  goal?: string
+  /** 今天可用的骑行时间（分钟） */
+  minutes?: number
+  /** 计划哪一天：今天还是明天 */
+  day: 'today' | 'tomorrow'
+}
+
+/** `POST /api/ai/plan` 的返回 */
+export interface PlanResult {
+  /**
+   * 计划本身。**降级时也不为 null** —— 规则兜底会现场算一份保守计划，
+   * AI 不可用只是少了「个性化」，不该让这一块空着。
+   */
+  plan: TrainingPlan
+  /** model = 模型生成；fallback = 规则兜底（AI 不可用，不是失败） */
+  source: 'model' | 'fallback'
+  /** 命中缓存时为 true（同样的输入不重复调用、不重复计费） */
+  cached: boolean
+  /** 降级原因，用于向用户如实说明 */
+  fallbackReason: string | null
+  usage: { promptTokens: number; completionTokens: number } | null
+  durationMs: number
+  attempts: number
+  /** 送进 prompt 的字符数（说明上下文压缩的效果） */
+  promptChars: number
+  model: string
+}
+
 /** `GET /api/ai/status` 的返回。**仅管理员可访问** */
 export interface AiStatus {
   available: boolean

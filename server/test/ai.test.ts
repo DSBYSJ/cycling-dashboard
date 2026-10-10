@@ -8,6 +8,18 @@ import type { RideRecord } from '../../src/types.ts'
 import { buildMessages, buildRideFacts, renderFacts } from '../src/ai/prompt.ts'
 import { ReviewFormatError, parseCoachReview } from '../src/ai/review.ts'
 import { coachCacheKey, coachCacheSize, clearCoachCache, generateCoachReview } from '../src/ai/coach.ts'
+import {
+  buildPlanFacts,
+  buildRulePlan,
+  clampPlanToInputs,
+  clearPlanCache,
+  generateTrainingPlan,
+  parseTrainingPlan,
+  planCacheKey,
+  planCacheSize,
+  renderPlanFacts,
+  type PlanInputs,
+} from '../src/ai/plan.ts'
 import { clearAiCalls, aiCallStats } from '../src/ai/metrics.ts'
 import type { AiConfig } from '../src/ai/deepseek.ts'
 
@@ -80,6 +92,29 @@ function deepseekOk(content = GOOD_REVIEW) {
   }
 }
 
+const GOOD_PLAN = JSON.stringify({
+  headline: '耐力骑 60 分钟，稳住节奏不加负荷',
+  intensity: '耐力',
+  distanceKm: 26.5,
+  durationMin: 60,
+  speedRange: '24-27',
+  elevationM: 120,
+  structure: [
+    { name: '热身', durationMin: 12, detail: '小齿比慢骑 12 分钟，逐步把状态带起来' },
+    { name: '主课', durationMin: 36, detail: '匀速 24-27 km/h：能说短句、呼吸略深但不喘' },
+    { name: '放松', durationMin: 12, detail: '降速溜车，结束后拉伸大腿前侧与小腿' },
+  ],
+  reasons: ['最近一次 32.5km 评分 78、状态不错，维持中等量而不加负荷'],
+  cautions: [],
+})
+
+function deepseekOkPlan() {
+  return {
+    choices: [{ message: { content: GOOD_PLAN } }],
+    usage: { prompt_tokens: 400, completion_tokens: 220 },
+  }
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
@@ -107,6 +142,7 @@ const noSleep = async (): Promise<void> => {}
 
 beforeEach(() => {
   clearCoachCache()
+  clearPlanCache()
   clearAiCalls()
 })
 
@@ -438,11 +474,13 @@ before(async () => {
   app = await buildApp(config, db)
   await app.ready()
 
-  // 接口层没法注入 fetch，这里替换全局的；chat() 的默认参数在调用时求值，所以生效
+  // 接口层没法注入 fetch，这里替换全局的；chat() 的默认参数在调用时求值，所以生效。
+  // 按 system prompt 分流：复盘的返回复盘 JSON，训练计划的返回计划 JSON
   originalFetch = globalThis.fetch
-  globalThis.fetch = makeFetch((index) =>
-    index === 0 ? jsonResponse(deepseekOk()) : jsonResponse(deepseekOk())
-  ).fn
+  globalThis.fetch = makeFetch((_index, body) => {
+    const system = body.messages?.[0]?.content ?? ''
+    return jsonResponse(system.includes('训练安排') ? deepseekOkPlan() : deepseekOk())
+  }).fn
 })
 
 after(async () => {
@@ -600,10 +638,201 @@ test('AI 接口：未配置 DEEPSEEK_API_KEY 时返回 503 而不是崩掉，其
   assert.equal(res.statusCode, 503)
   assert.equal(res.json().error.code, 'ai_disabled')
 
+  // 训练计划与复盘同一边界：未配 Key 一律 503
+  const planRes = await noKeyApp.inject({
+    method: 'POST',
+    url: '/api/ai/plan',
+    payload: { day: 'today' },
+    headers: { cookie },
+  })
+  assert.equal(planRes.statusCode, 503)
+  assert.equal(planRes.json().error.code, 'ai_disabled')
+
   // 探活不受影响：AI 只是增强，不能成为整站的单点故障
   const health = await noKeyApp.inject({ method: 'GET', url: '/api/health' })
   assert.equal(health.statusCode, 200)
 
   await noKeyApp.close()
   noKeyDb.close()
+})
+
+/* ==================== 5. 训练计划：上下文 / 校验 / 兜底 / 编排 ==================== */
+
+const planInputs: PlanInputs = { goal: '下个月想完成百公里', minutes: 60, day: 'today' }
+
+function planRide(over: Partial<RideRecord>): RideRecord {
+  return { ...fullRide(), ...over }
+}
+
+test('训练计划：facts 含最近一次骑行、近 7 天训练量与输入约束', () => {
+  const rides: RideRecord[] = [
+    planRide({ id: 'p1', date: '2026-10-08', updatedAt: 10 }),
+    planRide({ id: 'p2', date: '2026-10-06', distanceKm: 20, durationMin: 60, updatedAt: 9 }),
+    planRide({ id: 'p3', date: '2026-09-20', distanceKm: 50, durationMin: 150, updatedAt: 8 }),
+  ]
+  const facts = buildPlanFacts(rides, planInputs, '2026-10-10')
+
+  assert.equal(facts.lastRide?.distanceKm, 32.5)
+  // 近 7 天从 10-04 起：p1、p2 在窗口内，p3 在外
+  assert.equal(facts.recent.rides, 2)
+  assert.equal(facts.recent.distanceKm, 52.5)
+  assert.equal(facts.recent.durationMin, 155)
+
+  const text = renderPlanFacts(facts)
+  assert.ok(text.includes('百公里'))
+  assert.ok(text.includes('60 分钟'))
+  assert.ok(text.includes('近 7 天训练量'))
+  assert.ok(text.includes('没有心率和功率'), '必须写明可用指标边界，避免模型编造心率目标')
+})
+
+test('训练计划：没有任何记录也能构造 facts 并渲染（兜底输出的前提）', () => {
+  const facts = buildPlanFacts([], { goal: null, minutes: null, day: 'tomorrow' }, '2026-10-10')
+  assert.equal(facts.lastRide, null)
+  assert.equal(facts.recent.rides, 0)
+  const text = renderPlanFacts(facts)
+  assert.ok(text.includes('还没有任何骑行记录'))
+  assert.ok(text.includes('计划日：明天'))
+})
+
+test('训练计划：结构化校验 —— 合法输出通过、容错剥壳、坏输入抛错、强度落回默认档', () => {
+  const plan = parseTrainingPlan(GOOD_PLAN)
+  assert.equal(plan.intensity, '耐力')
+  assert.equal(plan.distanceKm, 26.5)
+  assert.equal(plan.structure.length, 3)
+
+  // 裹在代码块里也能剥出来
+  assert.equal(parseTrainingPlan('```json\n' + GOOD_PLAN + '\n```').headline, plan.headline)
+
+  // 强度是自由词时落回"耐力"而不是整份作废
+  const weird = JSON.parse(GOOD_PLAN) as Record<string, unknown>
+  weird.intensity = '爆炸输出'
+  assert.equal(parseTrainingPlan(JSON.stringify(weird)).intensity, '耐力')
+
+  // 缺 headline / 分段不足 / 距离离谱：整份作废，交给上层重试
+  const noHead = JSON.parse(GOOD_PLAN) as Record<string, unknown>
+  delete noHead.headline
+  assert.throws(() => parseTrainingPlan(JSON.stringify(noHead)), /headline/)
+
+  const onePhase = JSON.parse(GOOD_PLAN) as Record<string, unknown>
+  onePhase.structure = [(onePhase.structure as unknown[])[0]]
+  assert.throws(() => parseTrainingPlan(JSON.stringify(onePhase)), /分段/)
+
+  const tooFar = JSON.parse(GOOD_PLAN) as Record<string, unknown>
+  tooFar.distanceKm = 9999
+  assert.throws(() => parseTrainingPlan(JSON.stringify(tooFar)), ReviewFormatError)
+})
+
+test('训练计划：总时长受「可用时间」约束（服务端兜底，不指望模型自觉）', () => {
+  const plan = parseTrainingPlan(GOOD_PLAN) // 60 分钟
+  const clamped = clampPlanToInputs(plan, { goal: null, minutes: 45, day: 'today' })
+  assert.equal(clamped.durationMin, 45)
+  const untouched = clampPlanToInputs(plan, { goal: null, minutes: null, day: 'today' })
+  assert.equal(untouched.durationMin, 60)
+})
+
+test('训练计划：规则兜底 —— 约最近一次的六成、尊重可用时间、无记录也给默认', () => {
+  const facts = buildPlanFacts([planRide({ id: 'p1', date: '2026-10-08', updatedAt: 10 })], planInputs, '2026-10-10')
+  const free = buildRulePlan({ ...facts, inputs: { goal: null, minutes: null, day: 'today' } })
+  // 最近一次 95 分钟 → 六成 57 → 取整到 5 的倍数 = 55
+  assert.equal(free.durationMin, 55)
+  assert.equal(free.intensity, '轻松')
+  assert.equal(
+    free.structure.reduce((sum, phase) => sum + phase.durationMin, 0),
+    free.durationMin,
+    '分段时长必须加起来等于总时长'
+  )
+
+  const limited = buildRulePlan({ ...facts, inputs: { goal: null, minutes: 30, day: 'today' } })
+  assert.equal(limited.durationMin, 30)
+
+  const empty = buildRulePlan(buildPlanFacts([], { goal: null, minutes: null, day: 'today' }, '2026-10-10'))
+  assert.ok(empty.durationMin >= 20)
+  assert.ok(empty.reasons.some((line) => line.includes('AI 暂不可用')))
+})
+
+test('训练计划编排：成功返回模型计划并写缓存，第二次命中缓存不再请求', async () => {
+  const facts = buildPlanFacts([planRide({ id: 'p1', date: '2026-10-08', updatedAt: 10 })], planInputs, '2026-10-10')
+  const key = planCacheKey(planInputs, { id: 'p1', updatedAt: 10 })
+  const { fn, bodies } = makeFetch(() => jsonResponse(deepseekOkPlan()))
+
+  const first = await generateTrainingPlan(aiConfig, facts, key, { fetchImpl: fn, sleep: noSleep })
+  assert.equal(first.source, 'model')
+  assert.equal(first.cached, false)
+  assert.equal(first.attempts, 1)
+  assert.ok(first.plan.headline.length > 0)
+  assert.equal(first.usage?.promptTokens, 400)
+
+  const second = await generateTrainingPlan(aiConfig, facts, key, { fetchImpl: fn, sleep: noSleep })
+  assert.equal(second.cached, true)
+  assert.equal(bodies.length, 1, '命中缓存后不应再发起请求')
+  assert.equal(planCacheSize(), 1)
+})
+
+test('训练计划编排：格式错误重试一轮；两轮都坏则规则兜底且不抛错', async () => {
+  const facts = buildPlanFacts([planRide({ id: 'p1', date: '2026-10-08', updatedAt: 10 })], planInputs, '2026-10-10')
+
+  // 第一次不是 JSON、第二次正常 → 重试后成功
+  const flaky = makeFetch((index) =>
+    index === 0 ? jsonResponse(deepseekOk('我想想……今天适合休息。')) : jsonResponse(deepseekOkPlan())
+  )
+  const retried = await generateTrainingPlan(aiConfig, facts, planCacheKey(planInputs, { id: 'p1', updatedAt: 10 }), {
+    fetchImpl: flaky.fn,
+    sleep: noSleep,
+  })
+  assert.equal(retried.source, 'model')
+  assert.equal(retried.attempts, 2)
+
+  // 两轮都坏 → 兜底必须给一份可执行的保守计划，而不是 null
+  const bad = makeFetch(() => jsonResponse(deepseekOk('我无法完成这个请求')))
+  const fell = await generateTrainingPlan(
+    aiConfig,
+    facts,
+    planCacheKey({ ...planInputs, goal: '换个目标' }, { id: 'p1', updatedAt: 10 }),
+    { fetchImpl: bad.fn, sleep: noSleep }
+  )
+  assert.equal(fell.source, 'fallback')
+  assert.equal(fell.plan.intensity, '轻松')
+  assert.ok(fell.fallbackReason && fell.fallbackReason.length > 0)
+  assert.ok(fell.plan.structure.length >= 2)
+})
+
+test('训练计划编排：401 不重试（配置问题重试只是白花时间）', async () => {
+  const facts = buildPlanFacts([planRide({ id: 'p1', date: '2026-10-08', updatedAt: 10 })], planInputs, '2026-10-10')
+  const { fn, bodies } = makeFetch(() => jsonResponse({ error: { message: 'Authentication Fails' } }, 401))
+
+  const outcome = await generateTrainingPlan(aiConfig, facts, planCacheKey(planInputs, { id: 'p1', updatedAt: 10 }), {
+    fetchImpl: fn,
+    sleep: noSleep,
+  })
+  assert.equal(outcome.source, 'fallback')
+  assert.equal(outcome.attempts, 1)
+  assert.equal(bodies.length, 1)
+})
+
+/* ==================== 6. HTTP 集成：训练计划接口 ==================== */
+
+test('AI 接口：训练计划 —— 管理员拿到结构化计划且时长受约束；普通用户 403', async () => {
+  const cookie = await sessionFor('admin-root')
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/ai/plan',
+    payload: { goal: '下个月想完成百公里', minutes: 60, day: 'today' },
+    headers: { cookie },
+  })
+  assert.equal(res.statusCode, 200, res.body)
+  const body = res.json()
+  assert.equal(body.source, 'model')
+  assert.ok(body.plan.headline.length > 0)
+  assert.ok(body.plan.structure.length >= 2)
+  assert.ok(body.plan.durationMin <= 60, '总时长必须落在可用时间内')
+  assert.equal(body.inputs.minutes, 60)
+
+  const other = await sessionFor('another-user')
+  const denied = await app.inject({
+    method: 'POST',
+    url: '/api/ai/plan',
+    payload: { day: 'today' },
+    headers: { cookie: other },
+  })
+  assert.equal(denied.statusCode, 403)
 })

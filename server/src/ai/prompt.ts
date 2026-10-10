@@ -67,7 +67,14 @@ function roundInt(value: number | null | undefined): number | null {
   return Math.round(value)
 }
 
-export function buildRideFacts(ride: RideRecord, history: HistorySource[] = []): RideFacts {
+/**
+ * facts 的取数来源：只需要「不需要轨迹」的记录形态。
+ * 列表项（RideListItem，无 track）与详情（完整记录）都能满足 ——
+ * facts 本来就不读轨迹，放宽参数类型可以避免调用方为了凑类型多查一次详情。
+ */
+export type RideFactsSource = Omit<RideRecord, 'track'>
+
+export function buildRideFacts(ride: RideFactsSource, history: HistorySource[] = []): RideFacts {
   const env = ride.env
   const route = ride.route
   const scores = ride.scores

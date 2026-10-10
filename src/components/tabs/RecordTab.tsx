@@ -5,6 +5,7 @@ import RideForm from '../RideForm'
 import RideCheckIn from '../RideCheckIn'
 import ScoreCard from '../ScoreCard'
 import CoachReviewCard from '../CoachReviewCard'
+import TrainingPlanCard from '../TrainingPlanCard'
 import RouteReviews from '../RouteReviews'
 import StatsOverview from '../StatsOverview'
 import MaintenanceAlerts from '../MaintenanceAlerts'
@@ -121,6 +122,12 @@ export default function RecordTab({
             </div>
           )}
         </section>
+
+        {/*
+          训练计划：规划今天 / 明天骑多少（距离、时长、强度）。
+          与 AI 复盘同一权限边界：非管理员、后端未配 Key 时整块不渲染。
+        */}
+        <TrainingPlanCard />
 
         {/*
           AI 教练复盘。权限与可用性由组件内部判断：

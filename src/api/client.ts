@@ -1,4 +1,4 @@
-import type { AiStatus, Bike, CoachResult, DayCheckIn, RideRecord } from '../types'
+import type { AiStatus, Bike, CoachResult, DayCheckIn, PlanRequest, PlanResult, RideRecord } from '../types'
 
 /**
  * 后端 API 客户端。
@@ -204,6 +204,13 @@ export const api = {
    * 前端若先超时，后端还在跑并可能已经计费，用户却看到"失败"，那是最糟的组合。
    */
   aiCoach: (rideId: string) => request<CoachResult>('POST', '/ai/coach', { rideId }, { timeoutMs: 25_000 }),
+
+  /**
+   * 生成训练计划：结合最近骑行数据与目标，规划当日 / 次日的骑行量。
+   * 超时同样给到 25 秒；AI 失败时后端会兜底为规则计划而不是报错 ——
+   * 真正会走到 catch 的只有网络中断这类情况。
+   */
+  aiPlan: (body: PlanRequest) => request<PlanResult>('POST', '/ai/plan', body, { timeoutMs: 25_000 }),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<void>('POST', '/auth/password', { currentPassword, newPassword }),
 

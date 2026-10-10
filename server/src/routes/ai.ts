@@ -7,6 +7,8 @@ import { getRide, listRides } from '../repos/rides.ts'
 import type { AiConfig } from '../ai/deepseek.ts'
 import { buildRideFacts } from '../ai/prompt.ts'
 import { coachCacheKey, generateCoachReview } from '../ai/coach.ts'
+import type { PlanInputs } from '../ai/plan.ts'
+import { buildPlanFacts, generateTrainingPlan, planCacheKey } from '../ai/plan.ts'
 import { aiCallStats, recentAiCalls } from '../ai/metrics.ts'
 
 /**
@@ -22,6 +24,15 @@ import { aiCallStats, recentAiCalls } from '../ai/metrics.ts'
 
 /** 历史对比的取数条数（含当前这条，实际用 5 条对比） */
 const HISTORY_FETCH = 6
+
+/** 训练计划的取数条数（最近一次 + 历史对比 + 近 7 天训练量） */
+const PLAN_FETCH = 8
+
+/** 本地时区的今天（YYYY-MM-DD）—— 近 7 天训练量按本地日期算，不用 UTC 免得跨日出错 */
+function localToday(): string {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
+}
 
 function toAiConfig(config: AppConfig): AiConfig {
   return {
@@ -89,6 +100,49 @@ export function aiRoutes(db: Database, config: AppConfig): FastifyPluginAsync {
             suggestions: Array.isArray(ride.suggestions) ? ride.suggestions : [],
           },
         }
+      }
+    )
+
+    /**
+     * 生成训练计划：结合最近骑行数据与用户目标，规划当日 / 次日的骑行量。
+     *
+     * 与复盘一样：AI 失败时**不返回错误**，而是回落为规则兜底的保守计划，
+     * 由前端如实标注「规则兜底」—— 用户打开这一块就是为了看"今天骑多少"，
+     * 空着比给一份保守计划更糟。
+     */
+    app.post(
+      '/plan',
+      {
+        preHandler: requireAdmin,
+        config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      },
+      async (request) => {
+        if (!available()) {
+          throw new AppError(503, 'ai_disabled', 'AI 训练计划未启用')
+        }
+
+        const body = (request.body ?? {}) as Record<string, unknown>
+        const goalRaw = typeof body.goal === 'string' ? body.goal.trim().slice(0, 200) : ''
+        const minutesRaw = typeof body.minutes === 'number' ? body.minutes : Number.NaN
+        const minutes = Number.isFinite(minutesRaw)
+          ? Math.min(360, Math.max(15, Math.round(minutesRaw)))
+          : null
+        if (body.minutes != null && minutes === null) throw badRequest('minutes 必须是数字')
+        const day = body.day === 'tomorrow' ? 'tomorrow' : 'today'
+
+        const inputs: PlanInputs = { goal: goalRaw === '' ? null : goalRaw, minutes, day }
+        const userId = request.user!.userId
+        const rides = listRides(db, userId, { limit: PLAN_FETCH, offset: 0 }).items
+        const latest = rides[0]
+
+        const facts = buildPlanFacts(rides, inputs, localToday())
+        const outcome = await generateTrainingPlan(
+          toAiConfig(config),
+          facts,
+          planCacheKey(inputs, latest ? { id: latest.id, updatedAt: latest.updatedAt } : undefined)
+        )
+
+        return { ...outcome, model: config.deepseekModel, inputs }
       }
     )
 

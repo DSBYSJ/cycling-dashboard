@@ -13,7 +13,7 @@
 
 | 分页 | 内容 |
 |---|---|
-| **记录** | 记录一次骑行(卡片顶部内嵌「今天骑了吗」快速打卡,下方为详细录入表单) + 本次评分 + **AI 教练复盘**(仅管理员) + 路线评价 + 近 30 天概览 + 保养提醒 |
+| **记录** | 记录一次骑行(卡片顶部内嵌「今天骑了吗」快速打卡,下方为详细录入表单) + 本次评分 + **训练计划 / AI 教练复盘**(均仅管理员) + 路线评价 + 近 30 天概览 + 保养提醒 |
 | **看板** | 评分趋势 + 速度曲线 + 海拔曲线 + 骑行轨迹地图 + 评分雷达 + 历史记录(筛选、编辑、重命名、导出 JSON / CSV) |
 | **单车与轮胎** | 单车与外胎寿命管理(标签上带记录条数角标,有外胎超期/接近寿命时显示红/黄点) |
 | **站长**(仅管理员) | 站点概览与运行开关、账号管理、数据浏览与统计、备份、审计日志、邀请码、后台日志 |
@@ -130,6 +130,11 @@
   - **不自动生成**(用户点了才调用),同一份数据重复查看不会重复调用模型
   - 模型不可用时回落到规则引擎建议,并明确标注**不是 AI 生成的**
   - ⚠️ 只对管理员开放:个人主体 ICP 备案不能面向公众提供生成式 AI 服务(依据见 `docs/用户聊天功能合规评估.md`)
+- **训练计划**(仅管理员,DeepSeek):出门前先规划**今天 / 明天骑多少** —— 结合最近一次骑行、近 7 天训练量与你的目标
+  - 输入只有三项:计划哪天(今天/明天)、可用时间(30~90 分钟/不限)、目标(快捷选项 + 自由填写)
+  - 输出:强度档位、距离 / 时长 / 目标均速 / 建议爬升、**分段安排**(热身 / 主课 / 放松)、为什么这么安排、注意事项
+  - 同样的输入不会重复调用模型;模型不可用时由**规则兜底**现场算一份保守计划(约最近骑行量的六成),并如实标注不是 AI 生成的
+  - ⚠️ 与 AI 复盘同一边界,只对站长本人开放
 - **版本号与更新日志**:页脚显示当前版本,点击查看每个版本的更新内容;站长可在「设置」里开关这一入口
   - 版本号单一来源是 `package.json`,构建时注入;升位用 `npm run bump:patch` / `bump:major`
 
@@ -252,7 +257,7 @@ VITE_AMAP_SECURITY_CODE=你的安全密钥jscode
 - **按需加载**:三个分页用 `React.lazy` 拆包,「看板」页(高德地图 + 四个图表)只在切换过去时才下载;`react` / `lucide-react` / `@amap` 单独分包以便长期缓存。
 - **高德 SDK 的类型边界**:官方没有 TS 类型,项目在 `src/types/amap.ts` 手写了「实际用到的子集」(地图、覆盖物、四个服务类与回调结果结构)。因此**全项目没有任何 `any`**,SDK 字段名写错或返回结构变化在编译期就会暴露;新增 API 时请在那里补声明,不要退回 `any`。坐标形态差异(数组 / 对象 / LngLat 实例)由 `src/utils/amapCoords.ts` 统一归一。
 - **表单结构**:`RideForm` 只做编排,状态与业务逻辑在 `src/components/ride-form/useRideForm.ts`,分区组件(基本信息 / 路线 / 路线属性 / 环境 / 保存)各自独立,便于单独调整;每个分区用 `Pick<RideFormModel, …>` 显式声明它依赖的字段。
-- **测试**:18 个文件、**283 个用例**(前端 182 + 后端 101),覆盖评分规则(逐条对应上面的评分模型表格)、GPX 解析与距离/爬升计算、外胎寿命阈值、备份导入校验、图表辅助函数、高德坐标归一、API 客户端的错误映射与 Cookie 携带、批量上传切块、轨迹抽稀、更新日志数据。**调整评分权重或接口约定后请先跑 `npm test`**(后端另有 `cd server && npm test`,以及 AI 输出评测 `npm run eval`)。**
+- **测试**:18 个文件、**292 个用例**(前端 182 + 后端 110),覆盖评分规则(逐条对应上面的评分模型表格)、GPX 解析与距离/爬升计算、外胎寿命阈值、备份导入校验、图表辅助函数、高德坐标归一、API 客户端的错误映射与 Cookie 携带、批量上传切块、轨迹抽稀、更新日志数据,以及 AI 链路(上下文压缩 / 结构化校验 / 重试 / 降级 / 缓存)。**调整评分权重或接口约定后请先跑 `npm test`**(后端另有 `cd server && npm test`,以及 AI 输出评测 `npm run eval`)。**
 
 ## 项目结构
 
@@ -264,8 +269,8 @@ cycling-dashboard/
 ├── server/               # 后端:登录 + 云端数据
 │   ├── src/
 │   │   ├── config / db / auth / repos / routes / lib
-│   │   └── ai/           # AI 教练:prompt(上下文压缩) / review(结构化校验)
-│   │                     # deepseek(客户端) / metrics(可观测) / coach(编排)
+│   │   └── ai/           # AI 教练与训练计划:prompt(上下文压缩) / review / plan(结构化校验)
+│   │                     # deepseek(客户端) / metrics(可观测) / coach / plan(编排)
 │   ├── eval/             # AI 输出质量评测集(npm run eval,不达标退出码 1)
 │   └── test/             # 单元 + 集成测试(真实 SQLite + 真实 HTTP)
 │   # 注:部署脚本(install.sh / backup.mjs)只留在本机与服务器,不进仓库
@@ -287,6 +292,7 @@ cycling-dashboard/
 │   │   ├── ScoreCard / ScoreRadar / SpeedChart / ElevationChart
 │   │   ├── TripAdvice                    # 未来 7 天出行建议
 │   │   ├── CoachReviewCard / RidePicker  # AI 复盘卡片与「复盘对象」选择器
+│   │   ├── TrainingPlanCard              # 训练计划卡片(规划今天/明天骑多少)
 │   │   ├── ChangelogDialog / AppVersion / FilingRecords  # 更新日志 / 版本号 / 备案号
 │   │   ├── HistoryList / TrendChart / DataBackup
 │   │   ├── tabs/         # RecordTab / DashboardTab / BikesTab / AdminTab(按需加载)
@@ -298,6 +304,7 @@ cycling-dashboard/
 │   │   ├── useLegacyMigration.ts # 首次登录把浏览器里的旧数据搬到云端
 │   │   ├── useForecast.ts        # 未来 7 天预报(出行建议)
 │   │   ├── useCoachReview.ts     # AI 复盘(不自动生成、换记录清空结果)
+│   │   ├── useTrainingPlan.ts    # 训练计划(输入三项、同输入命中缓存)
 │   │   ├── useChangelogEnabled.ts # 更新日志开关(拿不到时按开启显示)
 │   │   ├── useAmap / useRoutePlanning / useHuaweiSync
 │   │   ├── useTabRoute / useWeather / useElevation / useTheme

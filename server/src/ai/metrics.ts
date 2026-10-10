@@ -15,8 +15,8 @@
 
 export interface AiCallLog {
   at: string
-  /** 调用场景，目前只有骑行复盘 */
-  kind: 'coach'
+  /** 调用场景：骑行复盘 / 训练计划 */
+  kind: 'coach' | 'plan'
   ok: boolean
   /** 实际发起了几次请求（格式错误会重试） */
   attempts: number

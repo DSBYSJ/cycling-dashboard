@@ -129,7 +129,16 @@ export default function AuthPage() {
   const shownError = localError ?? error
 
   return (
-    <div className="relative flex min-h-full items-center justify-center px-4 py-10">
+    <div
+      className="relative flex min-h-full items-center justify-center px-4 py-10"
+      // App 全屏 WebView（viewport-fit=cover）下避让系统状态栏 / 手势区：
+      // 加安全区后内容整体下移，居于"状态栏之下的可视区"。
+      // 浏览器里 env() 取不到值 → 0px，与原来完全一致。
+      style={{
+        paddingTop: 'calc(2.5rem + env(safe-area-inset-top, 0px))',
+        paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))',
+      }}
+    >
       {/* 展示型页面的氛围：星场粒子 + 一条缓缓掠过的扫描线（都在内容之下、不影响操作） */}
       <ParticleField />
       <div className="scanline" aria-hidden="true" />
@@ -139,7 +148,9 @@ export default function AuthPage() {
         onClick={(e) => toggleTheme({ x: e.clientX, y: e.clientY })}
         title={theme === 'dark' ? '切换到日间（浅色）模式' : '切换到夜间（深色）模式'}
         aria-label={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
-        className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-line bg-fill px-2.5 py-1 text-[11px] text-t2 transition hover:bg-fill-strong"
+        className="absolute right-4 flex items-center gap-1 rounded-full border border-line bg-fill px-2.5 py-1 text-[11px] text-t2 transition hover:bg-fill-strong"
+        // 原来是 top-4：在 App 里会落进状态栏区域、被系统图标压住 → 加上安全区
+        style={{ top: 'calc(1rem + env(safe-area-inset-top, 0px))' }}
       >
         {theme === 'dark' ? (
           <Sun className="h-3.5 w-3.5 text-accent-amber" aria-hidden="true" />

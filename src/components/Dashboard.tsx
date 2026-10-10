@@ -418,7 +418,11 @@ export default function Dashboard() {
       </a>
 
       {/* 顶栏 */}
-      <header className="header-glow sticky top-0 z-20 border-b border-line bg-page/85 backdrop-blur">
+      <header
+        className="header-glow sticky top-0 z-20 border-b border-line bg-page/85 backdrop-blur"
+        // App 里让顶栏背景延伸到状态栏之后、内容下移到安全区之下（浏览器 env()=0，无变化）
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
           {/* 品牌区：徽标 + 标题 + 评分口径。标题可截断，窄屏不挤爆右栏 */}
           <div className="flex min-w-0 items-center gap-2.5">
@@ -562,7 +566,13 @@ export default function Dashboard() {
         </nav>
       </header>
 
-      <main id="main" tabIndex={-1} className="mx-auto max-w-7xl space-y-5 px-4 py-6 md:px-6">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto max-w-7xl space-y-5 px-4 py-6 md:px-6"
+        // 底部避让手势区（浏览器 env()=0，无变化）
+        style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         {/* 离线提示：说明现在的数据是缓存副本、改动存不进去 */}
         {syncState === 'cache' && (
           <div className={BANNER_OFFLINE} role="status">

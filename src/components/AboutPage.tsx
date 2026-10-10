@@ -67,7 +67,11 @@ export default function AboutPage() {
   )
 
   return (
-    <div className="min-h-full">
+    <div
+      className="min-h-full"
+      // App 全屏 WebView 下页首内容避让系统状态栏 / 手势区（浏览器 env()=0，无变化）
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
       {/* 展示型页面的氛围：星场粒子 + 扫描线 + 阅读进度 */}
       <ParticleField />
       <div className="scanline" aria-hidden="true" />

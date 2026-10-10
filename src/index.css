@@ -1208,7 +1208,8 @@ html.lenis body {
 /* ---- 顶部阅读进度条 ---- */
 .reading-progress {
   position: fixed;
-  top: 0;
+  /* App 全屏 WebView 里落到状态栏之下（浏览器 env()=0，即最顶端） */
+  top: env(safe-area-inset-top, 0px);
   left: 0;
   right: 0;
   height: 2px;

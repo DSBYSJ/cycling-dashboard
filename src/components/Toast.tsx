@@ -33,7 +33,11 @@ export default function Toast({ toast, onClose, duration = 2600 }: Props) {
   const Icon = toast.type === 'success' ? CheckCircle2 : toast.type === 'error' ? AlertCircle : Info
 
   return (
-    <div className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 px-4">
+    <div
+      className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 px-4"
+      // App 里浮在手势区之上（浏览器 env()=0，无变化）
+      style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+    >
       <div
         role="status"
         aria-live="polite"

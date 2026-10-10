@@ -5,7 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <!-- manifest 由 vite-plugin-pwa 在构建时注入 -->
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <script>
+      // App 外壳（安卓 WebView）标记：给 <html> 挂 .app-shell 供样式层区分环境
+      // （收敛触摸行为：禁长按选择 / 滚动回弹 / 滚动条；浏览器不受影响）。
+      // 放在最前面尽早执行，避免样式闪变；"; wv" 是 Android WebView 的 UA 标志。
+      if (navigator.userAgent.includes('; wv')) {
+        document.documentElement.classList.add('app-shell')
+      }
+    </script>
     <meta name="theme-color" content="#0b1020" />
     <meta
       name="description"

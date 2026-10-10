@@ -19,6 +19,27 @@ function applyToDocument(theme: Theme) {
   const root = document.documentElement
   root.dataset.theme = theme
   root.style.colorScheme = theme
+  syncStatusBar(theme)
+}
+
+/**
+ * 安卓 App（Capacitor 壳）里同步系统状态栏文字色：
+ * 深色主题 → 浅色文字（DARK）；浅色主题 → 深色文字（LIGHT）。
+ * 浏览器访问、或壳里尚未装 StatusBar 插件时静默跳过 —— 不影响页面本身。
+ */
+interface CapacitorStatusBarPlugin {
+  setStyle?: (options: { style: 'DARK' | 'LIGHT' }) => Promise<void>
+}
+declare global {
+  interface Window {
+    Capacitor?: { Plugins?: { StatusBar?: CapacitorStatusBarPlugin } }
+  }
+}
+function syncStatusBar(theme: Theme) {
+  const statusBar = window.Capacitor?.Plugins?.StatusBar
+  if (!statusBar?.setStyle) return
+  // 状态栏同步失败（插件异常）不该影响主题切换本身
+  statusBar.setStyle({ style: theme === 'dark' ? 'DARK' : 'LIGHT' }).catch(() => {})
 }
 
 let current: Theme = readSaved()

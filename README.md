@@ -9,14 +9,18 @@
 
 ## 页面结构
 
-页面按用途分为三个分页(管理员另有一个分页),每屏只显示相关内容,不用在超长页面里来回滚动:
+登录后主界面按用途分为四个分页(管理员多一个),每屏只显示相关内容,不用在超长页面里来回滚动;另有一个**免登录**的公开页:
 
 | 分页 | 内容 |
 |---|---|
 | **记录** | 记录一次骑行(卡片顶部内嵌「今天骑了吗」快速打卡,下方为详细录入表单) + 本次评分 + **训练计划 / AI 教练复盘**(均仅管理员) + 路线评价 + 近 30 天概览 + 保养提醒 |
-| **看板** | 评分趋势 + 速度曲线 + 海拔曲线 + 骑行轨迹地图 + 评分雷达 + 历史记录(筛选、编辑、重命名、导出 JSON / CSV) |
+| **看板** | 评分趋势 + 速度曲线 + 海拔曲线 + 骑行轨迹地图 + 评分雷达 + 未来 7 天出行建议 + 历史记录(筛选、编辑、重命名、导出 JSON / CSV) |
 | **单车与轮胎** | 单车与外胎寿命管理(标签上带记录条数角标,有外胎超期/接近寿命时显示红/黄点) |
 | **站长**(仅管理员) | 站点概览与运行开关、账号管理、数据浏览与统计、备份、审计日志、邀请码、后台日志 |
+| **关于本站**(公开) | `#/about` 免登录可直接访问:项目介绍、功能介绍、隐私与数据说明、技术栈与更新日志 |
+
+> 「关于本站」是**唯一不需要登录**的页面,在登录态分流之前就先行匹配 —— 便于把项目介绍直接分享给别人查看。
+> 它是纯展示页,不读取任何账号数据,也不提供任何写入入口。
 
 > 「站长」分页**只对管理员显示**,但真正的权限在后端 —— 每个 `/api/admin/*` 接口都会独立校验,
 > 普通账号即使手动把地址改成 `#/admin` 也拿不到任何数据,只会被送回记录页。
@@ -138,9 +142,19 @@
 - **版本号与更新日志**:页脚显示当前版本,点击查看每个版本的更新内容;站长可在「设置」里开关这一入口
   - 版本号单一来源是 `package.json`,构建时注入;升位用 `npm run bump:patch` / `bump:major`
 
+### 界面与体验
+
+- **视觉氛围层**:页面底层常驻极光渐变(`AuroraBackground`,不拦截交互),公开页另有粒子星场(`ParticleField`);两者都会在 `prefers-reduced-motion` 下自动降级,移动端按档位减量
+- **光斑跟随**:关键卡片随鼠标移动浮现柔和光斑(`useCardSpotlight` 事件委托 + rAF 节流,写 CSS 变量不进 React 状态,不触发重渲染);昼夜两套主题的光斑强度分别标定
+- **转场与揭示**:主题切换用圆形揭示动画(View Transitions)、开机过渡页、卡片骨架屏、页签错峰入场、逐行标题浮现;动效统一走 `--dur-1/2/3` 时长 token,只动 `transform` / `opacity`
+- **返回顶部**:右下角环形进度按钮,滚动超过约一屏浮现,外圈实时显示阅读进度;内容高度变化(切页签)时重算
+- **顶栏活动指示条**:加载或同步数据时导航下缘有一条渐变光扫过,一眼看出「正在工作」;空闲不常驻
+- **Toast**:统一提示组件,带剩余时间条随自动关闭倒计时收短;成功 / 失败 / 信息三类语义配色
+- **移动端与 App 适配**:所有贴边元素(fixed / absolute 的顶底)都带 `env(safe-area-inset-*)`,安卓 App 状态栏与手势区不会遮挡内容;键盘弹出时页面上移,输入框保持可见
+
 ## 使用说明:分页与链接
 
-三个分页与地址栏 hash 同步(`#/record`、`#/dashboard`、`#/bikes`):刷新后停留在当前分页,链接可以直接分享或收藏。接安卓 App 后,系统返回键也会按这个历史记录后退,而不是直接退出应用。
+四个分页与地址栏 hash 同步(`#/record`、`#/dashboard`、`#/bikes`、`#/admin`):刷新后停留在当前分页,链接可以直接分享或收藏。另有一个免登录的公开页 `#/about`。接安卓 App 后,系统返回键也会按这个历史记录后退,而不是直接退出应用。
 
 ## 本地运行
 
@@ -163,7 +177,7 @@ npm run dev            # 浏览器打开 http://localhost:5173，会在页面上
 常用命令：
 
 ```bash
-npm test           # 前端单元测试
+npm test           # 前端单元测试（沙箱环境请用 npx vitest run --no-file-parallelism）
 npm run build      # 生产构建(输出 dist/),同时生成 Service Worker
 npm run preview    # 预览生产构建(PWA 与离线能力需在此模式下验证)
 npm run lint       # ESLint 检查
@@ -238,11 +252,16 @@ VITE_AMAP_SECURITY_CODE=你的安全密钥jscode
 - Tailwind CSS 3(配色全部走语义化 token,昼夜两套值由 CSS 变量提供)
 - 高德地图 JS API 2.0(`@amap/amap-jsapi-loader`)
 - 手写 SVG 图表(折线 / 面积 / 雷达 / 柱状,未使用图表库)
-- 后端:Node 22 + Fastify + `node:sqlite` + httpOnly Cookie(设计与部署见 `docs/项目说明.md`).md`)
+- `lucide-react`(全站图标;结构图标一律用图标组件,不拿 emoji 当时装)
+- `lenis`(公开页惯性滚动,按需加载)
+- 后端:Node 22 + Fastify + `node:sqlite` + httpOnly Cookie(设计与部署见 `docs/项目说明.md`)
 - IndexedDB(仅作为离线只读缓存,按账号分库)
 - `vite-plugin-pwa`(Workbox 生成 Service Worker 与 manifest)
 - Vitest + jsdom(单元测试)
 - Open-Meteo / sojson 免费 API
+
+> 前端生产依赖刻意保持精简(仅 8 个直接依赖,其中 3 个是 Tailwind 的构建链路),不引入 UI 组件库与图表库 —— 样式与图表都自己写,
+> 换来的是整站可无痛换肤、包体可控、没有第三方框架的破坏性升级负担。
 
 ## 工程说明
 
@@ -254,10 +273,15 @@ VITE_AMAP_SECURITY_CODE=你的安全密钥jscode
 - **列表不带轨迹**:一条 5000 点的 GPX 记录有几百 KB,历史列表传不起,所以列表接口只给 `hasTrack` 标记,`track` 为 `[]`。点开某条时 `ensureDetail` 再取详情 —— 注意这里有两个坑:① 拿列表项直接 PUT 会把服务器上的轨迹覆盖成空数组(适配器里用 `toWritableRide` 先取回完整记录再提交);② 云端列表刷新会把内存里已有的轨迹顶掉,所以判断「是否需要补详情」要基于数据本身(见 `selectedNeedsTrack`)而不是只看选中的 id。
 - **旧数据迁移**:老版本的数据只存在浏览器 IndexedDB 里(`cycling-dashboard` 库)。登录后 `useLegacyMigration` 会读一次:云端为空就自动上传并告知条数;云端已有数据则不擅自合并,只提示用户点一下。本地旧数据**始终不删除**。批量上传按请求体体积切块(`src/utils/chunks.ts`),避免撞上 8MB 上限。
 - **备份校验**:导入前由 `src/utils/backup.ts` 逐条归一化,字段缺失按默认值补齐,彻底不可用的记录(缺 id、日期非法、结构错误)跳过并告知条数,脏数据不会进库。
-- **按需加载**:三个分页用 `React.lazy` 拆包,「看板」页(高德地图 + 四个图表)只在切换过去时才下载;`react` / `lucide-react` / `@amap` 单独分包以便长期缓存。
 - **高德 SDK 的类型边界**:官方没有 TS 类型,项目在 `src/types/amap.ts` 手写了「实际用到的子集」(地图、覆盖物、四个服务类与回调结果结构)。因此**全项目没有任何 `any`**,SDK 字段名写错或返回结构变化在编译期就会暴露;新增 API 时请在那里补声明,不要退回 `any`。坐标形态差异(数组 / 对象 / LngLat 实例)由 `src/utils/amapCoords.ts` 统一归一。
 - **表单结构**:`RideForm` 只做编排,状态与业务逻辑在 `src/components/ride-form/useRideForm.ts`,分区组件(基本信息 / 路线 / 路线属性 / 环境 / 保存)各自独立,便于单独调整;每个分区用 `Pick<RideFormModel, …>` 显式声明它依赖的字段。
-- **测试**:18 个文件、**292 个用例**(前端 182 + 后端 110),覆盖评分规则(逐条对应上面的评分模型表格)、GPX 解析与距离/爬升计算、外胎寿命阈值、备份导入校验、图表辅助函数、高德坐标归一、API 客户端的错误映射与 Cookie 携带、批量上传切块、轨迹抽稀、更新日志数据,以及 AI 链路(上下文压缩 / 结构化校验 / 重试 / 降级 / 缓存)。**调整评分权重或接口约定后请先跑 `npm test`**(后端另有 `cd server && npm test`,以及 AI 输出评测 `npm run eval`)。**
+- **视觉体系约定**:① 图标只用 `lucide-react`,**禁止拿 emoji 当结构图标**;② 动效用 `--dur-1/2/3` 时长 token,只动 `transform` / `opacity`(可合成、不触发布局);③ 氛围层 `AuroraBackground` 走 `z-index:-1`,根容器**不能加不透明底色**,否则会把它盖住;④ 光斑坐标由 `useCardSpotlight` 写进 `--mx` / `--my` CSS 变量而**不进 React 状态**(鼠标移动不该引发重渲染);⑤ `.card` 的 `::before` / `::after` 已被光斑与描边占用,新增装饰前先确认。
+- **双主题分别标定**:浅色吃对比度,同一处效果在两套主题下的强度参数是不同的(如光斑浅色 0.28 / 深色 0.16)。**改完视觉要两套都截图核对**,不能只在一个主题下调好就收。
+- **贴边元素必须避让安全区**:任何 `fixed` / `absolute` 且贴 `top-0` / `bottom-0` 的元素都要带 `env(safe-area-inset-*)`(安卓 App 状态栏约 46px),否则会被系统栏盖住。
+- **数据写入一律过 `simplifyRide()`**:轨迹与速度序列都有条数上限,抽稀函数会**同时处理两个序列**(各 2 万点);新增或改动数据入口时,先找全同类入口,别只改一处。
+- **按需加载**:四个分页(RecordTab / DashboardTab / BikesTab / AdminTab)与公开页都走 `React.lazy` 动态 chunk,「看板」页(高德地图 + 四个图表)与 Lenis 只在切换过去时才下载;`react` / `lucide-react` / `@amap` 单独分包以便长期缓存。
+- **测试**:18 个文件、**292 个用例**(前端 182 + 后端 110),覆盖评分规则(逐条对应上面的评分模型表格)、GPX 解析与距离/爬升计算、外胎寿命阈值、备份导入校验、图表辅助函数、高德坐标归一、API 客户端的错误映射与 Cookie 携带、批量上传切块、轨迹抽稀、更新日志数据,以及 AI 链路(上下文压缩 / 结构化校验 / 重试 / 降级 / 缓存)。**调整评分权重或接口约定后请先跑 `npm test`**(后端另有 `cd server && npm test`,以及 AI 输出评测 `npm run eval`)。
+  - ⚠️ 前端测试**必须加 `--no-file-parallelism` 串行跑**:沙箱下并发会报 `EPERM` 并**静默丢掉测试文件**(表现为「文件数变少但全绿」),极易误判通过。
 
 ## 项目结构
 
@@ -275,39 +299,44 @@ cycling-dashboard/
 │   └── test/             # 单元 + 集成测试(真实 SQLite + 真实 HTTP)
 │   # 注:部署脚本(install.sh / backup.mjs)只留在本机与服务器,不进仓库
 ├── src/
-│   ├── App.tsx           # 只做登录态分流:过渡页 / 登录页 / 主界面
+│   ├── App.tsx           # 只做分流:关于页(#/about,免登录) / 过渡页 / 登录页 / 主界面
 │   ├── api/client.ts     # 接口客户端:统一错误码、区分网络错误、按需超时
 │   ├── types.ts          # 数据类型(前后端共用,server 直接引用本文件)
 │   ├── types/amap.ts     # 高德 SDK 的最小类型声明(全项目无 any 的依据)
 │   ├── version.ts        # 版本号(构建时注入,唯一来源是 package.json)
+│   ├── stats.ts          # 项目统计(构建时从代码/测试注入,「关于本站」取数用)
 │   ├── data/cities.ts    # 城市编码与坐标表
 │   ├── data/about.ts     # 「关于本站」公开页内容
 │   ├── data/changelog.ts # 更新日志(升版本号要同步加一条)
 │   ├── components/
 │   │   ├── Dashboard.tsx # 主界面:顶栏 + 分页路由(hash 同步)+ 业务编排
+│   │   ├── AboutPage.tsx # 「关于本站」公开页(免登录,含惯性滚动与分段退场)
 │   │   ├── AccountMenu.tsx   # 账号菜单(改密码 / 退出)
 │   │   ├── auth/         # AuthProvider(登录态) / AuthPage(登录注册页)
 │   │   ├── RideCheckIn / RideForm / RoutePlanner / ManageBikes / MapView
-│   │   ├── HuaweiSyncButton / Toast / ErrorBoundary
-│   │   ├── ScoreCard / ScoreRadar / SpeedChart / ElevationChart
-│   │   ├── TripAdvice                    # 未来 7 天出行建议
-│   │   ├── CoachReviewCard / RidePicker  # AI 复盘卡片与「复盘对象」选择器
-│   │   ├── TrainingPlanCard              # 训练计划卡片(规划今天/明天骑多少)
-│   │   ├── ChangelogDialog / AppVersion / FilingRecords  # 更新日志 / 版本号 / 备案号
-│   │   ├── HistoryList / TrendChart / DataBackup
+│   │   ├── HuaweiSyncButton / Toast / ErrorBoundary / BackToTop
+│   │   ├── AuroraBackground / ParticleField            # 极光氛围层 / 粒子星场
+│   │   ├── ScoreCard / ScoreRadar / SpeedChart / ElevationChart / TrendChart
+│   │   ├── TripAdvice / MaintenanceAlerts / StatsOverview
+│   │   ├── CoachReviewCard / RidePicker / TrainingPlanCard   # AI 复盘与训练计划
+│   │   ├── RouteReviews   # 路线评价(仅本人历史,无 UGC)
+│   │   ├── ChangelogDialog / AppVersion / FilingRecords      # 更新日志 / 版本号 / 备案号
+│   │   ├── HistoryList / DataBackup
 │   │   ├── tabs/         # RecordTab / DashboardTab / BikesTab / AdminTab(按需加载)
 │   │   └── ride-form/    # useRideForm(状态与业务逻辑)
 │   │                     # BasicSection / RouteSection / RouteAttrSection / EnvSection / SubmitSection
 │   ├── hooks/
 │   │   ├── useAuth.ts            # 登录态 Context 与消费方
-│   │   ├── useCloudData.ts       # 数据层:云端为主 + 本地只读缓存
+│   │   ├── useCloudData.ts       # 数据层:云端为主 + 本地只读缓存(乐观更新 + 失败回滚)
 │   │   ├── useLegacyMigration.ts # 首次登录把浏览器里的旧数据搬到云端
 │   │   ├── useForecast.ts        # 未来 7 天预报(出行建议)
 │   │   ├── useCoachReview.ts     # AI 复盘(不自动生成、换记录清空结果)
 │   │   ├── useTrainingPlan.ts    # 训练计划(输入三项、同输入命中缓存)
+│   │   ├── useSpotlight.ts       # 卡片光斑跟随(useCardSpotlight,写 CSS 变量不进状态)
 │   │   ├── useChangelogEnabled.ts # 更新日志开关(拿不到时按开启显示)
 │   │   ├── useAmap / useRoutePlanning / useHuaweiSync
 │   │   ├── useTabRoute / useWeather / useElevation / useTheme
+│   │   └── useReveal / useScrollExit / useCountUp / useSmoothScroll  # 公开页动效(均尊重 RM)
 │   └── utils/            # scoring(评分算法) / gpxParser / chartHelpers / tire(外胎寿命)
 │                         # backup(备份校验) / chunks(批量上传切块)
 │                         # trackSimplify(轨迹与速度序列抽稀) / rideOption(记录选项文案)

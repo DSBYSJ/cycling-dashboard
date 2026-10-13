@@ -22,6 +22,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.19',
+    date: '2026-10-14',
+    groups: [
+      {
+        title: '文档',
+        items: [
+          'README 全面校订：补齐「关于本站」公开页、界面与体验（氛围层 / 光斑 / 转场 / 返回顶部 / 安全区适配）、以及工程约定里新增的视觉体系与数据写入规则',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.18',
     date: '2026-10-13',
     groups: [

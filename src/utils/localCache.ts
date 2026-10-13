@@ -179,6 +179,8 @@ export function putCacheMany<T extends { id: string }>(userKey: string, store: C
         for (const item of items) objectStore.put(item)
         tx.oncomplete = () => resolve()
         tx.onerror = () => reject(tx.error ?? new Error('缓存写入失败'))
+        // 与 replaceCache 保持一致：配额超限等会走 abort 而不是 error，不监听会永远挂着
+        tx.onabort = () => reject(tx.error ?? new Error('缓存写入被中止'))
       }),
     undefined as void
   )

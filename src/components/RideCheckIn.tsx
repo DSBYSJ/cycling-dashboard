@@ -104,6 +104,10 @@ export default function RideCheckIn({ bikes, days, rides, onCheckIn, onClearToda
       setRode(null)
       setBikeId('')
       setDistance('')
+    } catch (err) {
+      // 打卡内部已处理过网络错误并返回 false；这里兜住意外异常，
+      // 否则会变成未捕获的 Promise rejection（用户看不到任何反馈）
+      setError(err instanceof Error ? err.message : '打卡失败，请稍后重试')
     } finally {
       setBusy(false)
     }

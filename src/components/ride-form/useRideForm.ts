@@ -46,7 +46,9 @@ export function numOrEmpty(v: string | number | null | undefined): string {
 interface Params {
   initialRecord?: RideRecord | null
   bikes: BikeWithStatus[]
-  onSave: (record: RideRecord) => void
+  /** 保存回调。声明成 Promise 是因为上层实际是异步写入（乐观更新 + 回滚），
+   *  调用处用 void 显式说明"不等它返回"，而不是让类型撒谎成同步的 void */
+  onSave: (record: RideRecord) => void | Promise<unknown>
 }
 
 /**
@@ -286,11 +288,17 @@ export function useRideForm({ initialRecord, bikes, onSave }: Params) {
 
   /* ---------------- 自动规划的路线:选中后自动填数据并采集环境数据 ---------------- */
   const handleRouteCandidate = async (candidate: RouteCandidate) => {
+    // 高德理论上不会给空几何，但这里判一下：没有起点就无法反查地名、也无法采集环境数据，
+    // 与其让 start.lat 抛错崩掉整个表单，不如明确提示
+    const start = candidate.path[0]
+    if (!start) {
+      setGpxMessage(`「${candidate.name}」的路线几何为空，无法使用该候选，请换一条`)
+      return
+    }
     setSelectedCandidateId(candidate.id)
     setRouteName(candidate.name)
     // 起点位置:名称用用户选定的起点(我的位置 / 搜索到的地点 / 地图选点),
     // 同时反查该点的所在市区,历史记录里显示到区
-    const start = candidate.path[0]
     void applyStartNameFromPoint(start, routeOrigin?.label)
     setTrack(candidate.path)
     setTrackSource('route')
@@ -410,7 +418,9 @@ export function useRideForm({ initialRecord, bikes, onSave }: Params) {
     if (selectedBike?.tire?.level === 'expired') {
       showToast(`单车「${selectedBike.name}」的外胎已超过建议使用寿命，请注意检查外胎状态`, 'error')
     }
-    onSave(record)
+    // 不等写入完成：上层已有乐观更新与失败回滚，界面立刻给反馈。
+    // 但必须 void 掉 Promise，避免未捕获的 rejection
+    void onSave(record)
     if (!isEdit) resetAfterSave()
   }
 

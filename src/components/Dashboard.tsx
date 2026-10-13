@@ -235,6 +235,10 @@ export default function Dashboard() {
    * 测量放在 useLayoutEffect —— 在浏览器绘制前完成，避免肉眼看到"先跳一下再滑"；
    * 位置进 state 后动画完全交给 CSS 的 transform/width 过渡。
    * 首次定位不加过渡（indicatorReady），否则指示条会从最左侧"飞"过来。
+   *
+   * ⚠️ nav 是 `overflow-x-auto`：窄屏上页签放不下时会横向滚动，
+   * 而 `offsetLeft` 是**相对 nav 内容**的偏移 —— nav 滚动后按钮视觉位置变了、
+   * offsetLeft 却不变，指示条就会停在原地不跟随。所以监听 nav 的 scroll 重算。
    */
   const navRef = useRef<HTMLElement | null>(null)
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null)
@@ -247,13 +251,14 @@ export default function Dashboard() {
     const update = () => {
       const btn = nav.querySelector<HTMLElement>(`[data-tab="${tab}"]`)
       if (!btn) return
-      // 左右各内缩 8px（对应原下划线的 inset-x-2）
-      const next = { left: btn.offsetLeft + 8, width: btn.offsetWidth - 16 }
+      // 减掉 nav 自身的横向滚动量，换算成"相对可视区"的位置
+      const next = { left: btn.offsetLeft + 8 - nav.scrollLeft, width: btn.offsetWidth - 16 }
       setIndicator((prev) => (prev && prev.left === next.left && prev.width === next.width ? prev : next))
       if (!raf) raf = requestAnimationFrame(() => setIndicatorReady(true))
     }
     update()
     window.addEventListener('resize', update)
+    nav.addEventListener('scroll', update, { passive: true })
     // 字体晚到会改变标签宽度，字体就绪后再校准一次
     if (document.fonts) {
       void document.fonts.ready.then(() => {
@@ -263,6 +268,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true
       window.removeEventListener('resize', update)
+      nav.removeEventListener('scroll', update)
       if (raf) cancelAnimationFrame(raf)
     }
   }, [tab, isAdmin, rides.length, tireAlert])
@@ -314,6 +320,11 @@ export default function Dashboard() {
    * 骑了 → 生成一条今天的骑行记录并关联所选单车,该车的累计里程/骑行次数/最近骑行日期
    * 与外胎寿命随即在「单车与轮胎管理」中更新(自动同步);距离可留空,之后补充详细数据。
    * 没骑 → 只记录当天的休息状态。
+   *
+   * ⚠️ 这里会触发多个独立请求（删旧打卡 / 存骑行记录 / 删旧骑行记录 / 存新打卡），
+   * 跨请求没有事务。所以刻意**先写后删**、并把"删除旧记录"放在最后：
+   * 中途失败最坏是留下一条多余记录（用户能自己删），而不会出现
+   * "打卡说骑了、但骑行记录不存在"这种对不上的状态。
    */
   const handleCheckIn = useCallback(
     async (input: { rode: boolean; bikeId?: string; distanceKm?: number }) => {
@@ -322,9 +333,9 @@ export default function Dashboard() {
       const existing = days.find((d) => d.date === today) ?? null
 
       if (!input.rode) {
-        await removeDay(today) // 覆盖当天原有打卡，避免残留旧的骑行记录关联
-        await saveDay({ id: today, date: today, rode: false, createdAt: now })
-        if (existing?.rideId) await remove(existing.rideId)
+        // 先记录"今天休息"，成功后再清掉当天旧的骑行记录关联
+        const saved = await saveDay({ id: today, date: today, rode: false, createdAt: now })
+        if (saved && existing?.rideId) await remove(existing.rideId)
         return null
       }
 
@@ -361,10 +372,11 @@ export default function Dashboard() {
         createdAt: now,
         updatedAt: now,
       }
-      await save(record)
-      // 同一天重复打卡时,删掉上一次生成的记录,保持一天一条
-      if (existing?.rideId && existing.rideId !== record.id) await remove(existing.rideId)
-      await saveDay({
+      // 1) 先建骑行记录
+      const savedRide = await save(record)
+      if (!savedRide) return null
+      // 2) 再记打卡（指向新记录）
+      const savedDay = await saveDay({
         id: today,
         date: today,
         rode: true,
@@ -373,10 +385,13 @@ export default function Dashboard() {
         rideId: record.id,
         createdAt: now,
       })
+      if (!savedDay) return null
+      // 3) 最后删掉上一次生成的记录，保持一天一条（即使这步失败，也只是多一条可见记录）
+      if (existing?.rideId && existing.rideId !== record.id) await remove(existing.rideId)
       setSelectedId(record.id)
       return record.id
     },
-    [days, rides, save, saveDay, remove, removeDay]
+    [days, rides, save, saveDay, remove]
   )
 
   /** 撤销今日打卡(打卡生成的骑行记录一并删除) */
@@ -384,10 +399,10 @@ export default function Dashboard() {
     const today = todayLocal()
     const entry = days.find((d) => d.date === today)
     if (!entry) return
-    if (entry.rideId) await remove(entry.rideId)
-    await removeDay(today)
+    // 先删打卡再删记录：反过来的话，打卡失败会留下"有记录但没打卡"的孤立数据
+    const cleared = await removeDay(today)
+    if (cleared && entry.rideId) await remove(entry.rideId)
   }, [days, remove, removeDay])
-
   /** 从备份文件恢复:合并写入(同 ID 覆盖)。入参已在 parseBackup 里校验归一化过。 */
   const handleImport = useCallback(
     async (summary: ImportSummary) => {

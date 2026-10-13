@@ -9,6 +9,23 @@ function describeError(err: unknown): string {
 }
 
 /**
+ * 登录态跨标签页同步用的频道。
+ *
+ * 会话在 httpOnly Cookie 里，Cookie 是同源共享的 —— 但**内存里的 user 不是**。
+ * A 标签登出后，B 标签仍以为已登录，直到某个请求 401 才被动纠正
+ * （这期间界面会短暂显示一个"登出后还能点"的状态）。所以这里主动广播一次。
+ * 只在"登出、以及登录为另一个人"时发，避免同账号重复登录反复触发重拉。
+ */
+const AUTH_CHANNEL_NAME = 'cycling-dashboard:auth'
+const authChannel: BroadcastChannel | null =
+  typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(AUTH_CHANNEL_NAME) : null
+
+interface AuthSignal {
+  /** 当前标签页认为的登录用户 id（null = 已登出） */
+  userId: number | null
+}
+
+/**
  * 登录态的唯一来源。
  *
  * 关键设计：**登录态存在 httpOnly Cookie 里，前端不持有令牌**。
@@ -33,6 +50,39 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setIsAdmin(false)
   }, [])
+
+  /**
+   * 监听其它标签页的登录态变化：
+   *   · 对方登出 / 切换到别的账号 → 本页也重新问一次后端（Cookie 已经变了）
+   *   · 对方登录的是同一个账号 → 什么都不做（避免无谓的请求风暴）
+   */
+  useEffect(() => {
+    if (!authChannel) return
+    const onMessage = (event: MessageEvent<AuthSignal>) => {
+      const incoming = event.data?.userId ?? null
+      if (incoming === (user?.id ?? null)) return
+      if (incoming === null) {
+        // 别的标签页登出了：Cookie 已清，本页直接同步为未登录
+        forgetIdentity()
+        setStatus('anonymous')
+        setNotice(null)
+        return
+      }
+      // 别的标签页切了账号：重新确认"我是谁"，拿不到就当未登录
+      void api
+        .me()
+        .then((me) => {
+          applyIdentity(me)
+          setStatus('authenticated')
+        })
+        .catch(() => {
+          forgetIdentity()
+          setStatus('anonymous')
+        })
+    }
+    authChannel.addEventListener('message', onMessage)
+    return () => authChannel.removeEventListener('message', onMessage)
+  }, [user?.id, applyIdentity, forgetIdentity])
 
   // 启动时确认登录态：Cookie 里若还有有效会话，刷新页面应该直接进主界面
   useEffect(() => {
@@ -83,8 +133,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setError(null)
       setNotice(null)
       try {
-        applyIdentity(await api.login(email.trim(), password))
+        const me = await api.login(email.trim(), password)
+        applyIdentity(me)
         setStatus('authenticated')
+        // 其它标签页若登录的是另一个账号（或未登录），需要据此同步
+        authChannel?.postMessage({ userId: me.user.id } satisfies AuthSignal)
         return true
       } catch (err) {
         setError(describeError(err))
@@ -102,8 +155,10 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setError(null)
       setNotice(null)
       try {
-        applyIdentity(await api.register(email.trim(), password))
+        const me = await api.register(email.trim(), password)
+        applyIdentity(me)
         setStatus('authenticated')
+        authChannel?.postMessage({ userId: me.user.id } satisfies AuthSignal)
         return true
       } catch (err) {
         setError(describeError(err))
@@ -125,6 +180,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('anonymous')
     setNotice(null)
     setError(null)
+    // 通知其它标签页：Cookie 已清，它们也该退出（否则要等下一次 401 才反应过来）
+    authChannel?.postMessage({ userId: null } satisfies AuthSignal)
   }, [forgetIdentity])
 
   const changePassword = useCallback(

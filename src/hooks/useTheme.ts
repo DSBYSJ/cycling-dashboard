@@ -47,6 +47,25 @@ const listeners = new Set<(theme: Theme) => void>()
 
 applyToDocument(current)
 
+/**
+ * 跨标签页同步。
+ *
+ * 模块级 `current` 只覆盖「同一个页面里的多个组件」，管不到另一个标签页 ——
+ * 于是 A 标签切了主题、B 标签还停在旧主题，直到手动刷新。
+ * `storage` 事件只在**其它**标签页写入时触发，所以不会自激。
+ * 这里的切换不做动画（另一个标签页的切换与本次点击的位置无关）。
+ */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== STORAGE_KEY) return
+    const next: Theme | null = event.newValue === 'light' || event.newValue === 'dark' ? event.newValue : null
+    if (!next || next === current) return
+    current = next
+    applyToDocument(next)
+    listeners.forEach((listener) => listener(next))
+  })
+}
+
 export function setTheme(theme: Theme, opts: { animate?: boolean } = {}) {
   const { animate = true } = opts
   current = theme

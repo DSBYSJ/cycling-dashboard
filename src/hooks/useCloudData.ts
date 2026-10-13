@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
-import { api, type BulkResult, type RideListItem } from '../api/client'
+import { api, TimeoutError, type BulkResult, type RideListItem } from '../api/client'
 import type { Bike, DayCheckIn, RideRecord } from '../types'
 import { useAuth } from './useAuth'
 import { putCacheMany, readCache, removeFromCache, replaceCache, type CacheStore } from '../utils/localCache'
@@ -42,12 +42,18 @@ interface Adapter<T extends { id: string }> {
   /** 本地缓存里的表名 */
   store: CacheStore
   sort: (a: T, b: T) => number
-  fetchAll: () => Promise<T[]>
+  fetchAll: () => Promise<FetchResult<T>>
   put: (item: T) => Promise<unknown>
   putMany: (items: T[]) => Promise<BulkResult>
   remove: (id: string) => Promise<unknown>
   /** 写缓存时如何取舍「云端新数据」与「缓存里已有的」（默认直接用新数据） */
   preserve?: (incoming: T, existing: T | undefined) => T
+}
+
+/** 拉取结果：数组 + 是否被上限截断（截断时界面要如实说明，而不是假装拉全了） */
+interface FetchResult<T> {
+  items: T[]
+  truncated: boolean
 }
 
 interface Collection<T extends { id: string }> {
@@ -98,7 +104,7 @@ function useCloudCollection<T extends { id: string }>(adapter: Adapter<T>): Coll
 
     // 2) 再拉云端，成功后覆盖缓存
     try {
-      const fresh = await adapter.fetchAll()
+      const { items: fresh, truncated } = await adapter.fetchAll()
       /*
        * 不能直接把列表结果当成全部数据：列表接口不带轨迹，而内存（或缓存）里可能
        * 已经存着之前拉过的完整详情。这里按同样的取舍规则合并一次 ——
@@ -110,11 +116,21 @@ function useCloudCollection<T extends { id: string }>(adapter: Adapter<T>): Coll
         : fresh
       setItems([...merged].sort(adapter.sort))
       setSync('cloud')
-      setError(null)
+      setError(truncated ? `记录较多，本次只加载了最近 ${fresh.length} 条（另有更早的记录未加载）` : null)
       void replaceCache(userKey, adapter.store, fresh, adapter.preserve)
     } catch (err) {
       // 会话失效会由 handleAuthFailure 统一踢回登录页，这里不必再提示
-      if (!handleAuthFailure(err)) setSync('cache')
+      if (handleAuthFailure(err)) return
+      /*
+       * 超时（服务端慢，但网络是通的）**不降级为离线只读** ——
+       * 否则用户网络完全正常却被禁止写入，比"慢一点"严重得多。
+       * 保持现有 sync（有数据就仍是 cloud），只提示可重试。
+       */
+      if (err instanceof TimeoutError) {
+        setError(err.message)
+        return
+      }
+      setSync('cache')
     } finally {
       setLoading(false)
     }
@@ -136,6 +152,12 @@ function useCloudCollection<T extends { id: string }>(adapter: Adapter<T>): Coll
    * 乐观更新 + 失败回滚。
    * 离线（sync === 'cache'）时直接拒绝：让用户明确知道「现在改了也存不上」，
    * 比先改界面再悄悄丢掉要诚实得多。
+   *
+   * 回滚用**按 id 局部还原**而不是整体还原成旧引用：
+   * 写入在飞行中时，另一个标签页可能通过 BroadcastChannel 触发了 refresh，
+   * 把云端最新数据写进了 items。此时若整体回滚，会把刚拉到的数据一起丢掉
+   * （表现为「另一个标签页改的东西消失了」）。所以只把本次乐观改动涉及的那几条
+   * 还原成改动前的值，其余保持不动。
    */
   const run = useCallback(
     async (optimistic: (prev: T[]) => T[], persist: () => Promise<void>): Promise<boolean> => {
@@ -148,7 +170,10 @@ function useCloudCollection<T extends { id: string }>(adapter: Adapter<T>): Coll
         return false
       }
       const before = itemsRef.current
-      setItems(optimistic(before))
+      const beforeById = new Map(before.map((item) => [item.id, item]))
+      const next = optimistic(before)
+      const nextById = new Map(next.map((item) => [item.id, item]))
+      setItems(next)
       try {
         await persist()
         setError(null)
@@ -156,12 +181,22 @@ function useCloudCollection<T extends { id: string }>(adapter: Adapter<T>): Coll
         return true
       } catch (err) {
         if (handleAuthFailure(err)) return false
-        setItems(before)
+        // 只还原本次乐观改动碰过的 id（新增 / 修改 / 删除），未涉及的保持刷新后的最新值
+        setItems((current) => {
+          const touched = new Set<string>([...beforeById.keys(), ...nextById.keys()])
+          const merged = new Map(current.map((item) => [item.id, item]))
+          for (const id of touched) {
+            const old = beforeById.get(id)
+            if (old) merged.set(id, old)
+            else merged.delete(id)
+          }
+          return Array.from(merged.values()).sort(adapter.sort)
+        })
         setError(describe(err))
         return false
       }
     },
-    [status, sync, handleAuthFailure]
+    [status, sync, handleAuthFailure, adapter.sort]
   )
 
   const save = useCallback(
@@ -217,16 +252,28 @@ function useCloudCollection<T extends { id: string }>(adapter: Adapter<T>): Coll
 
 const rideSort = (a: RideListItem, b: RideListItem) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt
 
-/** 分页把记录拉全（默认一页 200 条） */
-async function fetchAllRides(): Promise<RideListItem[]> {
-  const pageSize = 200
+/**
+ * 分页把记录拉全（默认一页 200 条）。
+ *
+ * 两处刻意的上限：
+ *  · `MAX_FETCH = 10_000`：单次首屏最多拉这么多条。再多会让首屏等待时间与内存
+ *    都失控（50+ 次串行往返）。超出部分**不静默丢弃** —— 由调用方据此提示用户
+ *    「只加载了最近 N 条」，避免用户以为旧记录丢了。
+ *  · 每页之间是串行 await：并发打满会更早触发服务端限流，反而更慢。
+ */
+const RIDES_PAGE_SIZE = 200
+const RIDES_MAX_FETCH = 10_000
+
+async function fetchAllRides(): Promise<FetchResult<RideListItem>> {
   const all: RideListItem[] = []
-  for (let offset = 0; offset <= 10_000; offset += pageSize) {
-    const page = await api.listRides({ limit: pageSize, offset })
+  let total = 0
+  for (let offset = 0; offset <= RIDES_MAX_FETCH; offset += RIDES_PAGE_SIZE) {
+    const page = await api.listRides({ limit: RIDES_PAGE_SIZE, offset })
     all.push(...page.items)
+    total = page.total
     if (page.items.length === 0 || all.length >= page.total) break
   }
-  return all
+  return { items: all, truncated: total > all.length }
 }
 
 /**
@@ -293,6 +340,12 @@ export function useRides() {
    */
   const attemptsRef = useRef(new Map<string, number>())
   const MAX_DETAIL_ATTEMPTS = 3
+  const attemptsUserRef = useRef(userKey)
+  // 换账号时清空尝试计数：否则上一个账号的计数会残留在 Map 里（只增不减）
+  if (attemptsUserRef.current !== userKey) {
+    attemptsUserRef.current = userKey
+    attemptsRef.current.clear()
+  }
   // 单独取出来，这样 useCallback 的依赖是稳定的函数/ref（collection 每次渲染都是新对象）
   const { itemsRef, patch } = collection
 
@@ -313,6 +366,7 @@ export function useRides() {
         const { ride } = await api.getRide(id)
         const withFlag: RideListItem = { ...ride, hasTrack: ride.track.length > 0 }
         patch(withFlag)
+        attemptsRef.current.delete(id)
         if (userKey) void putCacheMany(userKey, 'rides', [withFlag])
       } catch {
         // 拉不到就让地图空着，不打断其它操作；下次需要时会再试（受尝试次数上限约束）
@@ -345,7 +399,7 @@ const bikeSort = (a: Bike, b: Bike) => a.createdAt - b.createdAt
 const bikeAdapter: Adapter<Bike> = {
   store: 'bikes',
   sort: bikeSort,
-  fetchAll: async () => (await api.listBikes()).items,
+  fetchAll: async () => ({ items: (await api.listBikes()).items, truncated: false }),
   put: (bike) => api.putBike(bike),
   putMany: (bikes) => api.bulkBikes(bikes),
   remove: (id) => api.deleteBike(id),
@@ -373,7 +427,7 @@ const daySort = (a: DayCheckIn, b: DayCheckIn) => b.date.localeCompare(a.date)
 const dayAdapter: Adapter<DayCheckIn> = {
   store: 'days',
   sort: daySort,
-  fetchAll: async () => (await api.listDays()).items,
+  fetchAll: async () => ({ items: (await api.listDays()).items, truncated: false }),
   put: (day) => api.putDay(day),
   putMany: (days) => api.bulkDays(days),
   remove: (id) => api.deleteDay(id),

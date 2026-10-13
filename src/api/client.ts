@@ -51,6 +51,23 @@ export class NetworkError extends Error {
   }
 }
 
+/**
+ * 请求发出去了但**超过时限仍未拿到响应**（服务端慢 / 卡住），与「压根没连上」区分开。
+ *
+ * 为什么必须分开：界面把超时当成「离线」显示时，会同时触发只读降级（禁止写入），
+ * 用户网络完全正常却改不了任何数据 —— 那是比"慢"严重得多的观感问题。
+ * 超时应当允许重试，而不是把整个应用切成离线只读。
+ */
+export class TimeoutError extends NetworkError {
+  readonly timeoutMs: number
+
+  constructor(timeoutMs: number) {
+    super(`服务器响应超时（${Math.round(timeoutMs / 1000)} 秒），请稍后重试`)
+    this.name = 'TimeoutError'
+    this.timeoutMs = timeoutMs
+  }
+}
+
 export interface PublicUser {
   id: number
   email: string
@@ -134,12 +151,17 @@ async function request<T>(
   options: RequestOptions = {}
 ): Promise<T> {
   const timeoutMs = options.timeoutMs ?? 20_000
-  // AbortSignal.timeout 在旧浏览器上不存在，退化成不设超时而不是崩掉
-  const timeoutSignal =
-    typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
-      ? AbortSignal.timeout(timeoutMs)
-      : undefined
-  const signal = options.signal ?? timeoutSignal
+  // 自己造信号而不是用 AbortSignal.timeout：只有自己造的才分得清
+  // 「超时中断」与「调用方主动取消」—— 前者要重试，后者要静默。
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : undefined
+  // 调用方传入的 signal 与超时信号合并（此前传了 signal 会让超时彻底失效）
+  const onExternalAbort = () => controller?.abort()
+  if (options.signal) {
+    if (options.signal.aborted) controller?.abort()
+    else options.signal.addEventListener('abort', onExternalAbort, { once: true })
+  }
+  const signal = controller?.signal
 
   let res: Response
   try {
@@ -151,9 +173,16 @@ async function request<T>(
       signal,
     })
   } catch (err) {
-    // 调用方主动取消（切换页面等）要原样抛出，不能当成网络故障提示用户
+    // 调用方主动取消（切换页面等）要原样抛出，不能当成网络故障提示用户；
+    // 而自己触发的超时中断则是可重试的 TimeoutError。
+    if (controller?.signal.aborted && options.signal?.aborted !== true) {
+      if (err instanceof DOMException && err.name === 'AbortError') throw new TimeoutError(timeoutMs)
+    }
     if (err instanceof DOMException && err.name === 'AbortError') throw err
     throw new NetworkError()
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+    options.signal?.removeEventListener('abort', onExternalAbort)
   }
 
   // 退出登录、改密码、删除成功都返回 204，没有响应体

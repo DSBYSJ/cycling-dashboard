@@ -71,6 +71,20 @@ const UPSERT = `
     updated_at = excluded.updated_at
 `
 
+/**
+ * 用户侧列表用的列清单：把 track_json 换成长度判断。
+ *
+ * 刻意走 split/map 而不是 `COLUMNS.replace('track_json', ...)` ——
+ * 后者依赖「track_json 这个子串全清单里只出现一次」，
+ * 将来加一个 `xxx_track_json` 之类的列就会静默改错（把别的列也替掉）。
+ * 这里逐列比对，多一份稳健，成本几乎为零。
+ */
+const LIST_COLUMNS = COLUMNS.split(',')
+  .map((c) => c.trim())
+  .filter(Boolean)
+  .map((c) => (c === 'track_json' ? '(length(track_json) > 2) AS has_track' : c))
+  .join(', ')
+
 type Row = Record<string, unknown>
 
 function parseJson<T>(text: unknown, fallback: T): T {
@@ -139,7 +153,7 @@ export function listRides(
   // 列表不查 track_json，只用一个长度判断标记"是否含轨迹"，前端按需再取详情
   const rows = db
     .prepare(
-      `SELECT ${COLUMNS.replace('track_json', "(length(track_json) > 2) AS has_track")}
+      `SELECT ${LIST_COLUMNS}
        FROM rides WHERE ${whereSql}
        ORDER BY date DESC, created_at DESC
        LIMIT ? OFFSET ?`
@@ -171,7 +185,12 @@ export function upsertRides(db: Database, userId: number, rides: RideRecord[]): 
     db.exec('COMMIT')
     return rides.length
   } catch (err) {
-    db.exec('ROLLBACK')
+    try {
+      db.exec('ROLLBACK')
+    } catch {
+      // 事务可能已被 SQLite 自动回滚：此时 ROLLBACK 会抛「no transaction is active」。
+      // 吞掉它，否则会盖掉上面真正的失败原因，排查时看不到根因。
+    }
     throw err
   }
 }
@@ -220,8 +239,10 @@ export function listAllRides(
     params.push(opts.to)
   }
   if (opts.city) {
-    where.push('r.city_name LIKE ?')
-    params.push(`%${opts.city}%`)
+    // 转义 LIKE 的通配符：否则城市名里输入一个 % 就会匹配到全部记录
+    // （后台搜索框的语义是"包含这个词"，不是"通配模式"）
+    where.push("r.city_name LIKE ? ESCAPE '\\'")
+    params.push(`%${opts.city.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`)
   }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 

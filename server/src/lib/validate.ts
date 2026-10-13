@@ -119,6 +119,19 @@ function requireDate(v: unknown, field = 'date'): string {
   return v as string
 }
 
+/**
+ * 服务器本地时区的今天（YYYY-MM-DD）。
+ *
+ * 刻意**不用** `new Date().toISOString().slice(0,10)` —— 那是 UTC 日期，
+ * 东八区凌晨 0–8 点会算成"昨天"，与前端（`todayLocal()`）、打卡、训练计划
+ * 的本地日期口径不一致（`routes/ai.ts` 的 localToday 也是同一考虑）。
+ * 日期字段全站统一走本地时区，才不会有"差一天"的诡异现象。
+ */
+export function todayLocal(): string {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
+}
+
 /* ---------------- 结构化字段 ---------------- */
 
 function normalizeEnv(v: unknown): EnvData {
@@ -195,7 +208,11 @@ function normalizeScores(v: unknown): Scores | null {
   const weather = nullableNum(v.weather, 0, 100, '天气评分')
   const route = nullableNum(v.route, 0, 100, '路线评分')
   if (total == null || weather == null || route == null) return null
-  return { total, weather, route, rainFactor: nullableNum(v.rainFactor, 0, 1_000, '降雨指数') ?? 0 }
+  /*
+   * rainFactor 是可选的派生字段（降雨指数），越界没有理由让整条记录写入失败 ——
+   * 用 lenientNum：非法值归一为 0，而不是 fail 掉整个请求。
+   */
+  return { total, weather, route, rainFactor: lenientNum(v.rainFactor, 0, 1_000) ?? 0 }
 }
 
 function normalizeStringList(v: unknown, field: string, maxLength: number): string[] {
@@ -261,7 +278,7 @@ export function validateBike(v: unknown): Bike {
     : TIRE_TYPES[0].id
   const installedAt = typeof v.tireInstalledAt === 'string' && DATE_RE.test(v.tireInstalledAt)
     ? v.tireInstalledAt
-    : new Date().toISOString().slice(0, 10)
+    : todayLocal()
 
   return {
     id: requireId(v.id, 'id'),
@@ -285,7 +302,8 @@ export function validateDay(v: unknown): DayCheckIn {
     date,
     rode: v.rode === true,
     bikeId: optionalStr(v.bikeId),
-    distanceKm: optionalNum(v.distanceKm, 'distanceKm'),
+    // 与 validateRide 的 distanceKm 同口径：负数 / 超限一律 fail，而不是照单全收
+    distanceKm: nullableNum(v.distanceKm, 0, LIMITS.distanceKm, '距离') ?? undefined,
     rideId: optionalStr(v.rideId),
     note: optionalStr(v.note, LIMITS.textLength),
     createdAt: Math.round(optionalNum(v.createdAt, 'createdAt') ?? Date.now()),

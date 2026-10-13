@@ -150,6 +150,9 @@ function selectByDouglasPeucker(projected: PlanePoint[], tolerance: number): boo
 /** 兜底：万一 Douglas-Peucker 之后仍超限，做等间隔截取（并保证首尾在内） */
 function evenSample<T>(items: T[], maxItems: number): T[] {
   if (items.length <= maxItems) return items
+  // maxItems < 2 时步长会是 0 或 Infinity，进而产出 items[NaN]（undefined）——
+  // 虽然当前调用点全是固定大值，但函数是导出的，这里挡住以防将来被误用
+  if (maxItems < 2) return items.slice(0, Math.max(0, maxItems))
   const step = (items.length - 1) / (maxItems - 1)
   const out: T[] = []
   for (let i = 0; i < maxItems; i += 1) out.push(items[Math.round(i * step)])

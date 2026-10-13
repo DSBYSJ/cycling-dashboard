@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { AiStatus, CoachResult } from '../types'
 
@@ -13,8 +13,11 @@ import type { AiStatus, CoachResult } from '../types'
  * 2. **先问状态，不可用就整块不渲染**。没配 API Key 时给用户一个点了报错的按钮，
  *    比不显示更糟。状态只问一次（切记录不会重复问，因为 status 与具体记录无关）。
  *
- * 3. **换记录时清空结果**。否则会看到"上一条的复盘配这一条的数据"——
+ * 3. **换记录时清空结果，且旧请求作废**。否则会看到"上一条的复盘配这一条的数据"——
  *    这种错配比没有复盘更误导人。
+ *    光在切记录时清空还不够：清空发生在 effect 里，而**在飞行中的请求返回时
+ *    仍会执行 setResult**，把上一条的复盘贴到新记录上。所以用请求序号
+ *    （`requestIdRef`）标记"当前有效的那次请求"，过期响应一律丢弃。
  *
  * `rideId` 传 null 表示"不该启用"（非管理员账号），此时直接进入 unavailable、不发任何请求。
  */
@@ -73,8 +76,15 @@ export function useCoachReview(rideId: string | null): CoachState {
     }
   }, [enabled])
 
-  /** 切记录时清空，避免张冠李戴 */
+  /**
+   * 当前有效的请求序号。只有序号最新的那次请求才允许写结果 ——
+   * 换记录、重复点击都会让旧序号失效，从而丢弃过期的响应。
+   */
+  const requestIdRef = useRef(0)
+
+  /** 切记录时清空，避免张冠李戴；同时让在飞的请求作废 */
   useEffect(() => {
+    requestIdRef.current += 1
     setResult(null)
     setError(null)
     if (enabled && status) setPhase(status.available ? 'idle' : 'unavailable')
@@ -82,13 +92,17 @@ export function useCoachReview(rideId: string | null): CoachState {
 
   const generate = useCallback(async () => {
     if (!rideId) return
+    const myRequest = (requestIdRef.current += 1)
     setPhase('loading')
     setError(null)
     try {
       const data = await api.aiCoach(rideId)
+      // 期间换过记录 / 又点了一次：这次的结果已经不属于当前界面，丢弃
+      if (requestIdRef.current !== myRequest) return
       setResult(data)
       setPhase(data.source === 'model' ? 'ready' : 'fallback')
     } catch (err) {
+      if (requestIdRef.current !== myRequest) return
       setError(err instanceof Error ? err.message : '生成失败，请稍后重试')
       setPhase('error')
     }

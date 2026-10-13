@@ -40,10 +40,13 @@ export function parseGPX(xml: string): { points: TrackPoint[]; name?: string; st
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue
     const eleNode = node.getElementsByTagName('ele')[0]
     const timeNode = node.getElementsByTagName('time')[0]
+    // 空标签或非数字会 parseFloat 出 NaN —— 必须转成 undefined，
+    // 否则 NaN 会顺着投影/抽稀一路传播，可能把整段轨迹算废
+    const ele = eleNode ? parseFloat(eleNode.textContent ?? '') : NaN
     points.push({
       lat,
       lon,
-      ele: eleNode ? parseFloat(eleNode.textContent ?? '') : undefined,
+      ele: Number.isFinite(ele) ? ele : undefined,
       time: timeNode?.textContent?.trim() || undefined,
     })
   }

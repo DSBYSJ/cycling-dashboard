@@ -130,7 +130,11 @@ export function consumeInviteCode(db: Database, code: string, userId: number): C
     db.exec('COMMIT')
     return { ok: true }
   } catch (err) {
-    db.exec('ROLLBACK')
+    try {
+      db.exec('ROLLBACK')
+    } catch {
+      // 同上：不要让 ROLLBACK 自身的错误盖掉原始失败原因
+    }
     throw err
   }
 }

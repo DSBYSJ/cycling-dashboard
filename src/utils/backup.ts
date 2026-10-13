@@ -41,6 +41,12 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const SURFACES: SurfaceType[] = ['asphalt', 'cement', 'gravel', 'mixed']
 const TRAFFICS: TrafficLevel[] = ['low', 'medium', 'high']
 
+/** 本地时区的今天（YYYY-MM-DD）—— 全站日期口径一致，不用 UTC 免得起止差一天 */
+function todayLocal(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 /* ---------------- 基础取值助手 ---------------- */
 
 function isObj(v: unknown): v is Record<string, unknown> {
@@ -202,7 +208,8 @@ function normalizeBike(v: unknown): Bike | null {
     name,
     category,
     tireTypeId,
-    tireInstalledAt: DATE_RE.test(installedAt) ? installedAt : new Date().toISOString().slice(0, 10),
+    // 缺失时用**本地日期**而不是 UTC（东八区凌晨会差一天，见 server 侧 todayLocal）
+    tireInstalledAt: DATE_RE.test(installedAt) ? installedAt : todayLocal(),
     tireStartKm: nullableNum(v.tireStartKm) ?? 0,
     notes: optionalStr(v.notes),
     createdAt: created,

@@ -64,7 +64,11 @@ export function upsertBikes(db: Database, userId: number, bikes: Bike[]): number
     db.exec('COMMIT')
     return bikes.length
   } catch (err) {
-    db.exec('ROLLBACK')
+    try {
+      db.exec('ROLLBACK')
+    } catch {
+      // 事务可能已被自动回滚，此时 ROLLBACK 会抛错；吞掉以免盖掉真正的失败原因
+    }
     throw err
   }
 }

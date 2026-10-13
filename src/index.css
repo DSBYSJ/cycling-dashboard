@@ -533,6 +533,30 @@ html {
   background: rgb(var(--c-sky-rgb) / 0.28);
 }
 
+/* WebKit（桌面 Chrome / Edge）滚动条同步主题化：
+   滑块用 padding-box + 透明边框做出"细条内缩"的观感，悬停时点亮。
+   App 壳里由上面 html.app-shell 的规则整体隐藏，不受影响。 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background: var(--fill-strong);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--c-sky-rgb) / 0.35);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* ============ 图表配色(SVG 用 class 而非属性,才能跟随主题)
    注:SVG 展示属性不支持 var(),必须以 CSS 声明生效 ============ */
 .chart-grid {
@@ -1003,6 +1027,133 @@ html {
 .stagger-in {
   animation: rise-in var(--dur-3) var(--ease-out) both;
   animation-delay: calc(var(--i, 0) * 38ms);
+}
+
+/* ---- 页签内容入场：直接子元素依次错峰浮现（纯 CSS，无需组件逐个写 --i）。
+   切换页签时容器靠 key 重挂载，动画自然重播；单子的页签（如「记录」）表现与 animate-rise 等价。 */
+.tab-enter > * {
+  animation: rise-in var(--dur-3) var(--ease-out) both;
+}
+.tab-enter > *:nth-child(2) { animation-delay: 45ms; }
+.tab-enter > *:nth-child(3) { animation-delay: 90ms; }
+.tab-enter > *:nth-child(4) { animation-delay: 135ms; }
+.tab-enter > *:nth-child(5) { animation-delay: 180ms; }
+.tab-enter > *:nth-child(6) { animation-delay: 225ms; }
+.tab-enter > *:nth-child(7) { animation-delay: 270ms; }
+.tab-enter > *:nth-child(n+8) { animation-delay: 315ms; }
+
+/* ---- 顶栏活动指示：同步 / 加载进行中时，一条渐变光在导航下缘往复扫过。
+   条件渲染（不活跃时 DOM 里不存在），不常驻占合成开销。 */
+.top-loading {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.top-loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 38%;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--c-sky-rgb) / 0.9),
+    rgb(var(--c-emerald-rgb) / 0.7),
+    transparent
+  );
+  animation: top-loading-run 1.15s var(--ease-in-out) infinite;
+}
+@keyframes top-loading-run {
+  from { transform: translateX(-105%); }
+  to { transform: translateX(300%); }
+}
+
+/* ---- 评分环辉光：沿档位色给描边一圈柔光（单个小 SVG 的 drop-shadow，成本可忽略）---- */
+.score-glow-excellent { filter: drop-shadow(0 0 5px var(--score-excellent)); }
+.score-glow-good { filter: drop-shadow(0 0 5px var(--score-good)); }
+.score-glow-fair { filter: drop-shadow(0 0 5px var(--score-fair)); }
+.score-glow-poor { filter: drop-shadow(0 0 5px var(--score-poor)); }
+
+/* ---- Toast 剩余时间条：底部一条随时间收短的彩线，还剩多久一眼可见。
+   时长由组件写入 --toast-ms；transform 驱动，收起不引起回流。 */
+.toast-life {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.55;
+  transform-origin: left center;
+  animation: toast-life var(--toast-ms, 2600ms) linear both;
+}
+@keyframes toast-life {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+/* ---- 返回顶部：滚动进度环 + 上箭头（样式；行为见 BackToTop.tsx）。
+   只动 transform/opacity；隐藏态不接收点击。进度环的 --p（0~1）由组件 rAF 节流写入。 */
+.back-top {
+  position: fixed;
+  right: 1.25rem;
+  /* App 里浮在手势区之上（浏览器 env()=0，无变化） */
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: var(--card-bg);
+  color: rgb(var(--c-sky-text-rgb));
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(12px) scale(0.92);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+}
+.back-top.is-visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.back-top:hover {
+  border-color: rgb(var(--c-sky-rgb) / 0.45);
+}
+.back-top:active {
+  transform: scale(0.94);
+}
+.back-top-ring {
+  position: absolute;
+  inset: 3px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.back-top-ring circle {
+  fill: none;
+  stroke-width: 2;
+}
+.back-top-ring .track {
+  stroke: var(--fill-strong);
+}
+.back-top-ring .prog {
+  stroke: rgb(var(--c-sky-rgb) / 0.85);
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - var(--p, 0));
 }
 
 /* ---- 主题切换：短暂开启全站色彩过渡，避免整页"啪"地换色 ---- */

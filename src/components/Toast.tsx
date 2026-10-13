@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 import { AlertCircle, CheckCircle2, Info } from 'lucide-react'
 
 export type ToastType = 'success' | 'error' | 'info'
@@ -41,10 +41,16 @@ export default function Toast({ toast, onClose, duration = 2600 }: Props) {
       <div
         role="status"
         aria-live="polite"
-        className={`flex animate-toast-in items-center gap-2 rounded-xl border px-4 py-2.5 text-sm shadow-xl shadow-black/40 backdrop-blur ${style.box}`}
+        className={`relative flex animate-toast-in items-center gap-2 overflow-hidden rounded-xl border px-4 py-2.5 pb-3 text-sm shadow-xl shadow-black/40 backdrop-blur ${style.box}`}
       >
         <Icon className={`h-4 w-4 shrink-0 ${style.icon}`} aria-hidden="true" />
         <span className="whitespace-nowrap">{toast.message}</span>
+        {/* 剩余时间条：随自动关闭倒计时收短（--toast-ms 与上面的定时器等长） */}
+        <span
+          className="toast-life"
+          style={{ '--toast-ms': `${duration}ms` } as CSSProperties}
+          aria-hidden="true"
+        />
       </div>
     </div>
   )

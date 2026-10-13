@@ -11,6 +11,7 @@ import { describeSimplification, simplifyRide } from '../utils/trackSimplify'
 import type { ImportSummary } from '../utils/backup'
 import Toast, { type ToastMessage, type ToastType } from './Toast'
 import AccountMenu from './AccountMenu'
+import BackToTop from './BackToTop'
 import { AppVersion } from './AppVersion'
 import { HAS_FILING, FilingRecords } from './FilingRecords'
 import { useAuth } from '../hooks/useAuth'
@@ -564,6 +565,11 @@ export default function Dashboard() {
             />
           )}
         </nav>
+
+        {/* 活动指示：首载 / 云端同步 / 补拉轨迹时，一条渐变光在导航下缘往复扫过（不活跃时不渲染） */}
+        {(loading || syncState === 'loading' || detailLoadingId) && (
+          <div className="top-loading" aria-hidden="true" />
+        )}
       </header>
 
       <main
@@ -614,8 +620,8 @@ export default function Dashboard() {
         )}
 
         <Suspense fallback={<TabFallback />}>
-          {/* key={tab} 让切换分页时重新触发入场动效：轻微上浮比"啪一下换掉"更有空间感 */}
-          <div key={tab} className="animate-rise space-y-5">
+          {/* key={tab} 让切换分页时重新触发入场动效：直接子元素依次错峰浮现（.tab-enter，纯 CSS） */}
+          <div key={tab} className="tab-enter space-y-5">
             {tab === 'record' && (
             <RecordTab
               rides={rides}
@@ -681,6 +687,7 @@ export default function Dashboard() {
       </main>
 
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+      <BackToTop />
     </div>
   )
 }

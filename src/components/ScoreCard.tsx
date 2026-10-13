@@ -33,7 +33,7 @@ function ScoreCard({ record }: { record: RideRecord }) {
               cy="50"
               r="42"
               fill="none"
-              className={`${ringClass} ring-draw`}
+              className={`${ringClass} score-glow-${band} ring-draw`}
               strokeWidth="10"
               strokeLinecap="round"
               pathLength={1}

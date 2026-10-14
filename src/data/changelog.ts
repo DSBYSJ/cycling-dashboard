@@ -22,6 +22,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.20',
+    date: '2026-10-14',
+    groups: [
+      {
+        title: '修复',
+        items: ['同域名下新增的其它应用页面（/news）不再被本应用的离线缓存抢走导航、打开白屏'],
+      },
+    ],
+  },
+  {
     version: '1.0.19',
     date: '2026-10-14',
     groups: [

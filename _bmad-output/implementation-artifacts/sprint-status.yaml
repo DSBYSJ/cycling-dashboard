@@ -17,8 +17,8 @@ development_status:
   epic-1: in-progress
 
   story-1-1-ci-gate-scripts: done               # 三道闸门写成 npm script
-  story-1-2-github-actions-workflow: ready-for-dev    # Actions 工作流
-  story-1-3-build-artifact: backlog             # 构建产物留存
+  story-1-2-github-actions-workflow: done       # Actions 工作流
+  story-1-3-build-artifact: ready-for-dev       # 构建产物留存
   story-1-4-readme-badge: backlog               # 徽章与文档同步
 
   epic-1-retrospective: optional

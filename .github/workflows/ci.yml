@@ -1,0 +1,66 @@
+name: CI
+
+# 闸门定义全部在 package.json 的 ci:* 脚本里，这里只负责「准备一台能跑 npm 的机器」。
+# 要改判定条件请改 package.json —— 不要在本文件里加真实命令，否则本地与云端会出现两套真相。
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+# 只读权限：这条流水线不需要写仓库、不需要发版、不需要读密钥
+permissions:
+  contents: read
+
+# 同一分支连续推送时，取消上一次仍在跑的任务，避免过时运行堆在队列里
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: 校验
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node 22
+        uses: actions/setup-node@v4
+        with:
+          # 与本地开发环境保持一致（本机 v22.22.2），版本漂移是「本地绿、CI 红」的头号原因
+          node-version: 22.x
+          # 缓存 ~/.npm，key 由 package-lock.json 的哈希派生，锁文件一改缓存自动失效
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 安装后端依赖
+        # server/ 有自己的 package.json 与锁文件；不装它就等于后端 110 个测试永不执行
+        run: npm ci --prefix server
+
+      - name: 静态检查
+        run: npm run ci:lint
+
+      - name: 单元测试
+        run: npm run ci:test
+
+      - name: 后端类型与测试
+        run: npm run ci:server
+
+      - name: 类型与构建
+        run: npm run ci:build
+
+      - name: 留存构建产物
+        # 三道门全绿才上传：红灯时的 dist 是「能编译但测试不过」的产物，
+        # 一旦被当成可发布物下载，闸门就白设了。
+        # 名字用完整 sha（Actions 表达式没有字符串切片，无法取短哈希；页面本身显示短形式）。
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist
+          retention-days: 7

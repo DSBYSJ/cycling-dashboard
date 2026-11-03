@@ -22,6 +22,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.22',
+    date: '2026-11-04',
+    groups: [
+      {
+        title: '改进',
+        items: [
+          '每次更新前会自动跑完 182 个测试与构建校验，减少带着问题上线的情况',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.21',
     date: '2026-11-04',
     groups: [

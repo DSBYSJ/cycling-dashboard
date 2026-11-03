@@ -180,12 +180,34 @@ Error: EPERM: operation not permitted, open
 | AC-1.2.1~7 | workflow 结构与安全项 | 通过 | YAML 解析成功，7 个 step 名称与预期一致；无真实命令字面量、无密钥 |
 | AC-1.3.1~3 | 产物留存 | 通过（配置级） | `upload-artifact@v4` + `if: success()` + `retention-days: 7`；`dist` 已在 `.gitignore` |
 | AC-1.4.1~3 | 徽章与文档 | 通过 | README diff 为 1 增 0 删；CHANGELOG 新增 1.0.22 条目 |
-| AC-6 | 云端可下载产物 | **待云端首跑** | 本机到 github.com:443 的 TLS 不通（既有问题），见下文 |
+| AC-6 | 云端可下载产物 | 通过 | 云端首跑 `run 41688649820`，产物 `dist-7e5553545407a72f90c473d51ab604fca70cc27f`（0.2 MB，保留至 2026-11-10） |
 
-## 五、未能在本轮闭环的一项
+## 五、云端首跑（本报告初稿后的补记）
 
-**AC-6（云端产物下载）与云端首次绿灯**需要仓库推送到 GitHub 并由 Actions 实际执行。本机网络到 `github.com:443` 不通（该项目一直靠 `push-api.mjs` 走 API 推送，属既有约束）。
+初稿写到这里时，AC-6 还是"待云端首跑"——本机此前到 `github.com:443` 不通（项目一直靠 `push-api.mjs` 走 API 推送）。后来重试 `git ls-remote` 发现网络已恢复，于是把提交直接推上去，让流水线真跑了一次：
 
-**处置**：本轮以"**本地执行同一套命令的真实红绿结果**"作为验证证据 —— 因为 ADR-1 已保证云端与本地跑的是同一串脚本，差异只剩运行器环境。云端首跑结果由站长在可联网环境补一次截图，作为 `docs/screenshots/` 之外的补充材料。
+```
+$ git push origin main feature/ci-pipeline
+   491ceeb..7e55535  main -> main
+ * [new branch]      feature/ci-pipeline -> feature/ci-pipeline
+```
 
-**这不是"没做完"，是"验证边界写清楚"** —— 把不能验的部分标出来，比含糊地说"应该没问题"负责。
+**运行结果**（`run 41688649820`，分支 `main`，sha `7e55535`）：
+
+| 步骤 | 结果 |
+|---|---|
+| 检出代码 / 准备 Node 22 / 安装依赖 / 安装后端依赖 | success |
+| 静态检查 | success |
+| 单元测试 | success |
+| 后端类型与测试 | success |
+| 类型与构建 | success |
+| 留存构建产物 | success |
+
+- **状态**：`completed / success`，10 个步骤无一失败；
+- **耗时**：`17:54:00Z → 17:55:27Z`，共 **87 秒**（NFR-1 要求 ≤5 分钟，实测 1.5 分钟，主要时间花在两次 `npm ci`）；
+- **产物**：`dist-7e5553545407a72f90c473d51ab604fca70cc27f`，0.2 MB，保留 7 天至 2026-11-10；
+- **徽章**：README 顶部的 CI 徽章随之变为绿色（此前是 `no status`）。
+
+**这件事本身的意义**：本地那四个红绿实验证明了"闸门判定是对的"，云端首跑证明了"这套判定在别人的机器上也成立"。两者合起来，ADR-1 那条"YAML 只当壳"的设计才算被真正验证 —— **同一串脚本，换一台机器，结论一致**。
+
+**一点意外收获**：这次推送同时触发了仓库里原有的 `pages build and deployment`，也成功了 —— 说明公开仓库的发布链路没有被新增的 CI 影响。

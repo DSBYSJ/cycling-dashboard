@@ -38,11 +38,18 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
+      - name: 安装后端依赖
+        # server/ 有自己的 package.json 与锁文件；不装它就等于后端 110 个测试永不执行
+        run: npm ci --prefix server
+
       - name: 静态检查
         run: npm run ci:lint
 
       - name: 单元测试
         run: npm run ci:test
+
+      - name: 后端类型与测试
+        run: npm run ci:server
 
       - name: 类型与构建
         run: npm run ci:build

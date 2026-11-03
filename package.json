@@ -15,8 +15,9 @@
     "preview": "vite preview",
     "ci:lint": "npm run lint -- --max-warnings=0",
     "ci:test": "npm test",
+    "ci:server": "npm --prefix server run typecheck && npm --prefix server test",
     "ci:build": "npm run build",
-    "ci": "npm run ci:lint && npm run ci:test && npm run ci:build",
+    "ci": "npm run ci:lint && npm run ci:test && npm run ci:server && npm run ci:build",
     "bump:patch": "npm version patch --no-git-tag-version",
     "bump:major": "npm version major --no-git-tag-version"
   },

@@ -1,0 +1,77 @@
+# BMad Method · 项目级配置（BMM 模块）
+
+# 这份文件的作用只有一个：**约定产物落在哪、用什么语言写**。
+# 各阶段的工作流按这里的 output_folder 与 artifact_paths 找落点，产物位置因此是稳定的、
+# 可被 git 逐条核验的——而不是散在聊天窗口里。
+#
+# 它是项目配置，随仓库提交；不需要放任何个人凭据。
+
+communication_language: 中文
+document_output_language: 中文
+
+# 所有工作流产物的一级目录
+output_folder: _bmad-output
+
+# 四个阶段各自的落点（与 _bmad-output 下的子目录一一对应）
+artifact_paths:
+  planning: _bmad-output/planning-artifacts        # 简报 / PRD / 架构 / Epics
+  specs: _bmad-output/specs                        # 每个 story 一份 SPEC
+  implementation: _bmad-output/implementation-artifacts  # Sprint 状态、逐 story 记录
+  test: _bmad-output/test-artifacts                # 审查记录、验证报告
+
+# 阶段 → 工作流 → 产物 → 本项目的实际提交
+# 这张表是给核验者用的：想复核哪个阶段，直接按产物路径打开，再按提交哈希看 diff。
+phases:
+  - id: analysis
+    workflow: bmad-product-brief
+    agent: analyst
+    artifact: planning-artifacts/brief-cycling-dashboard-ci.md
+    commit: 2a18e11
+
+  - id: planning
+    workflow: bmad-prd
+    agent: pm
+    artifact: planning-artifacts/prd-cycling-dashboard-ci.md
+    commit: 5fb16e3
+
+  - id: solutioning
+    workflow: bmad-architecture
+    agent: architect
+    artifact: planning-artifacts/architecture-ci-pipeline.md
+    commit: 8f5e80f
+
+  - id: spec
+    workflow: bmad-spec
+    agent: pm
+    artifact: specs/spec-1-ci-pipeline/SPEC.md
+    commit: 9695ada
+
+  - id: breakdown
+    workflow: bmad-create-epics-and-stories
+    agent: pm
+    artifact: planning-artifacts/epics.md
+    commit: 70caa41
+
+  - id: sprint
+    workflow: bmad-sprint-planning
+    agent: sm
+    artifact: implementation-artifacts/sprint-status.yaml
+    commit: 30e15ca
+
+  - id: build
+    workflow: bmad-build
+    agent: dev
+    artifact: 代码提交（package.json / .github/workflows/ci.yml / README.md）
+    commit: ed560ca, 6dca26f, 7272e37, 0dce0d7
+
+  - id: review
+    workflow: bmad-code-review
+    agent: dev
+    artifact: test-artifacts/code-review-1-1.md
+    commit: e083454
+
+  - id: verify
+    workflow: bmad-walkthrough
+    agent: dev
+    artifact: test-artifacts/verification-report.md
+    commit: 2bca520

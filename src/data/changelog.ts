@@ -22,6 +22,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.23',
+    date: '2026-11-04',
+    groups: [
+      {
+        title: '修复',
+        items: [
+          '同域名下的提示词库（/prompts）不再被本应用的离线缓存抢走导航 —— 此前打开会白屏',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.22',
     date: '2026-11-04',
     groups: [

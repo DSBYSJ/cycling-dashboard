@@ -135,10 +135,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: 'index.html',
-        // ⚠️ 同域名下还有别的应用（/news = AI 资讯趋势雷达）：
+        // ⚠️ 同域名下还有别的应用（/news = AI 资讯趋势雷达、/prompts = 提示词库）：
         // 不排除时，离线导航兜底会把它们的页面也抢走、返回骑行自己的 index.html
-        //（表现：打开 /news 白屏、标签标题却还是"骑行评分监测看板"）
-        navigateFallbackDenylist: [/^\/news/, /^\/api\/news/],
+        //（表现：打开别的应用白屏、标签标题却还是"骑行评分监测看板"）
+        navigateFallbackDenylist: [/^\/news/, /^\/api\/news/, /^\/prompts/],
         runtimeCaching: [
           {
             // 天气/海拔接口:网络优先,失败时回落到缓存(数据本身变化不快,离线也能看到上次结果)

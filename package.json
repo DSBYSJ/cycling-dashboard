@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.21",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -10,6 +13,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
+    "ci:lint": "npm run lint -- --max-warnings=0",
+    "ci:test": "npm test",
+    "ci:build": "npm run build",
+    "ci": "npm run ci:lint && npm run ci:test && npm run ci:build",
     "bump:patch": "npm version patch --no-git-tag-version",
     "bump:major": "npm version major --no-git-tag-version"
   },

@@ -52,7 +52,9 @@
 
 ### FR-5 单一入口（P0）
 
-新增 `npm run ci`，内容就是上表三条命令的串联。**workflow 里只调用 `npm run ci`**，不再重复写命令。
+新增 `npm run ci` 及三段分脚本 `ci:lint` / `ci:test` / `ci:build`。**workflow 里只调用脚本名**（`npm run ci:lint` 等），不出现任何真实命令。
+
+> 修正说明（`/bmad-spec` 落地时发现 FR-5 与 FR-8 冲突）：若 workflow 只调用单条 `npm run ci`，三道门会挤进同一个 step，FR-8 的"失败可定位"落空。裁决为**分层脚本**——命令定义只在 `package.json` 一处，YAML 逐段调用脚本名。详见 `specs/spec-1-ci-pipeline/SPEC.md` 第〇节。
 
 > 理由（这是本次最关键的设计判断）：把闸门写在 npm script 里，本地和云端执行的是同一份脚本。换 CI 平台（GitHub Actions → Gitee Go → 自建 runner）只需换壳，闸门本身零改动；也不会出现"CI 能过，本地跑不起来"的双轨。
 
@@ -67,7 +69,7 @@ README 标题下方加流水线状态徽章（`main` 分支）。
 
 ### FR-8 失败可诊断（P1）
 
-- 每个闸门是独立的 `step` 且带中文 `name`，GitHub 的失败摘要里能直接看到挂在哪一步。
+- 每个闸门是**独立 step**（分别调用 `ci:lint` / `ci:test` / `ci:build`）且带中文 `name`，GitHub 的失败摘要里能直接看到挂在哪一步。
 - 不做"把日志再落一份 artifact"—— Actions 已保留完整日志，重复存储是浪费。
 
 ## 四、非功能需求

@@ -46,3 +46,14 @@ jobs:
 
       - name: 类型与构建
         run: npm run ci:build
+
+      - name: 留存构建产物
+        # 三道门全绿才上传：红灯时的 dist 是「能编译但测试不过」的产物，
+        # 一旦被当成可发布物下载，闸门就白设了。
+        # 名字用完整 sha（Actions 表达式没有字符串切片，无法取短哈希；页面本身显示短形式）。
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist
+          retention-days: 7

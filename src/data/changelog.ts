@@ -22,6 +22,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.0.21',
+    date: '2026-11-04',
+    groups: [
+      {
+        title: '新增',
+        items: [
+          '「关于本站」页脚提供安卓 App 安装包下载（Android，约 4 MB）—— App 与网页同一站点，打开即最新内容',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.20',
     date: '2026-10-14',
     groups: [

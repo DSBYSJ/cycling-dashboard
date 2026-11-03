@@ -483,6 +483,10 @@ html.app-shell [data-selectable] {
 html.app-shell ::-webkit-scrollbar {
   display: none;
 }
+/* 「下载 App」入口在 App 内隐藏：本身就在 App 里，点了没有意义 */
+html.app-shell .app-download {
+  display: none;
+}
 
 /* 移动端点击高亮：全局去掉（各按钮/卡片已有自己的 active 反馈） */
 html {

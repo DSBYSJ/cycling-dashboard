@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Bike,
   Database,
+  Download,
   Gauge,
   Info,
   Moon,
@@ -22,6 +23,7 @@ import { AppVersion } from './AppVersion'
 import { HAS_FILING, FilingRecords } from './FilingRecords'
 import ParticleField from './ParticleField'
 import {
+  ANDROID_APP,
   COMPLIANCE_NOTE,
   FEATURE_GROUPS,
   PRINCIPLES,
@@ -266,6 +268,22 @@ export default function AboutPage() {
           {/* 版本号：访客与面试官都能看到「这份代码是哪个版本」 */}
           <p className="mt-3 text-[11px] text-t5">
             <AppVersion />
+          </p>
+
+          {/* 安卓 App：Capacitor 壳直接加载本站，网页更新后打开即是新版。
+              App 内隐藏（本身就是 App，规则见 index.css 的 .app-download）。 */}
+          <p className="app-download mt-3 text-[11px] text-t5">
+            <a
+              href={ANDROID_APP.url}
+              download
+              title="Android 安装包，iOS 不适用"
+              className="inline-flex items-center gap-1 transition hover:text-t2"
+            >
+              <Download className="h-3 w-3" aria-hidden="true" />
+              下载安卓 App {ANDROID_APP.version}（{ANDROID_APP.size}）
+            </a>
+            <span className="mx-2 text-t6">·</span>
+            <span className="text-t6">安装需允许「未知来源」</span>
           </p>
 
           {/* 隐私政策与用户协议：此前只在登录后的页脚有入口，访客看不到 —— 公开页更该给 */}

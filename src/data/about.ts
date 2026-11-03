@@ -144,3 +144,17 @@ export const PRINCIPLES: string[] = [
 /** 页脚的合规声明（个人非经营性备案口径） */
 export const COMPLIANCE_NOTE =
   '本站为个人非经营性网站，仅用于记录和展示本人的运动数据，无任何商业用途，也不包含任何企业或单位信息。'
+
+/**
+ * 安卓 App（Capacitor 壳，直接加载本站 —— 网页更新后 App 打开即是新版）。
+ *
+ * ⚠️ 升级安装包时三处一起改：① 服务器 `download/` 目录里的文件名 ② 这里的 `url`
+ * ③ `version`（页面显示的壳版本）。安装包不进 git，只放服务器。
+ */
+export const ANDROID_APP = {
+  version: 'v1.0',
+  /** 安装包体积（如实标注，下载前有个预期） */
+  size: '约 4 MB',
+  /** 站点根 download/ 目录，由 nginx 单独 location 下发 */
+  url: '/download/cycling-android-v1.0.apk',
+}

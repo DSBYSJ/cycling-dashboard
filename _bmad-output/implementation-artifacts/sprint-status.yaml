@@ -14,15 +14,19 @@ sprint:
   base: main
 
 development_status:
-  epic-1: in-progress
+  epic-1: done
 
   story-1-1-ci-gate-scripts: done               # 三道闸门写成 npm script
   story-1-2-github-actions-workflow: done       # Actions 工作流
   story-1-3-build-artifact: done                # 构建产物留存
   story-1-4-readme-badge: done                  # 徽章与文档同步
 
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
 notes: |
   1.1 阻塞 1.2（1.2 调用的脚本名由 1.1 定义），其余可并行。
   每个 story 完成后：改状态 → 与代码同一次提交 → 推送。
+
+  评审追加（R-01，High）：后端 server/ 自带 110 个用例与独立 typecheck，
+  第一版闸门完全没覆盖 —— 已补 ci:server 与「安装后端依赖」step，
+  覆盖率由 182 提到 292。详见 test-artifacts/code-review-1-1.md。

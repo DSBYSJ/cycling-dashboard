@@ -1,4 +1,5 @@
 # 🚴 骑行评分监测看板
+[![CI](https://github.com/DSBYSJ/cycling-dashboard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DSBYSJ/cycling-dashboard/actions/workflows/ci.yml)
 
 > **项目总览(定位 / 功能 / 技术栈 / 关键设计 / 合规)见 [`docs/项目说明.md`](docs/项目说明.md)。**
 > 本文侧重功能细节与工程约定。
